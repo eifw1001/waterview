@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Wild 与 Water3D 代表场景，以及 Wat3R / Water-VGGT 绝对与相对最差场景（附 Chamfer 分数），逐帧对比四个模型的点云。">
 <title>WaterView · 水下场景四模型对比</title>
-<link rel="stylesheet" href="assets/viewer.css?v=6">
+<link rel="stylesheet" href="assets/viewer.css?v=7">
 <script defer src="assets/three.min.js"></script>
 <script defer src="assets/js/controls/OrbitControls.js"></script>
-<script defer src="assets/scenes.js?v=6"></script>
-<script defer src="assets/viewer.js?v=6"></script>
+<script defer src="assets/scenes.js?v=7"></script>
+<script defer src="assets/viewer.js?v=7"></script>
 </head>
 <body>
 <header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div>
@@ -35,7 +35,7 @@
 <label>点大小 <input type="range" id="psz" min="1" max="20" value="8"><span id="pszv">8</span></label>
 <label>保留高置信度点 <input type="range" id="conf" min="5" max="100" value="100"><span id="confv">100%</span></label>
 <label><input type="checkbox" id="sync" checked>视角同步</label>
-<label><input type="checkbox" id="rot">自动旋转</label><button id="reset" class="secondary">重置视角</button>
+<label><input type="checkbox" id="rot">自动旋转</label><button id="align" class="secondary" aria-pressed="false" hidden title="把四个视角吸附到当前帧相机的位置和朝向">对齐输入帧视角</button><button id="reset" class="secondary">重置视角</button>
 </div></section>
 <section class="pgrid" aria-label="四模型点云">
 <article class="card" id="card_wat3r"><h2><i style="background:#6fb3ff"></i>Wat3R <span id="count_wat3r"></span><span class="cham" id="cham_wat3r" title="Chamfer（对真值点云，越小越好）"></span></h2><canvas id="cv_wat3r" aria-label="Wat3R 点云"></canvas><div class="load" id="ld_wat3r">等待加载…</div></article>

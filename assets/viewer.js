@@ -7,6 +7,7 @@
   const cache = new Map();
   const CACHE_FRAMES = 288; // Two full 32-frame scenes = 256 model-frames (~32 MiB).
   let scene, frame = 0, confidence = 100, playing = false, loading = false;
+  let snap = false; // 吸附到当前帧相机位姿（有 cams 数据的场景默认开启）
   let requestId = 0, controller, timer, dirty = true, syncing = false;
   let lastTime = performance.now();
   let prefetchAbort = null, prefetchScene = null;
@@ -70,7 +71,24 @@
         p.controls.target.set(0, 0, 0);
         p.camera.position.set(d * Math.cos(el) * Math.cos(az), d * Math.cos(el) * Math.sin(az), d * Math.sin(el));
         p.camera.up.set(0, 0, 1);
+        p.camera.fov = 50; p.camera.updateProjectionMatrix();
         p.camera.lookAt(0, 0, 0); p.controls.update();
+      });
+      syncing = false; dirty = true;
+    }
+    // 把四个视角吸附到“拍当前输入帧”的相机位姿（与点云同一坐标系，逐帧对应）。
+    function applyCams(f) {
+      const cf = scene.cams && scene.cams.frames[f];
+      if (!cf) return;
+      syncing = true;
+      MODELS.forEach(m => {
+        const p = panels[m];
+        p.camera.position.set(cf[0], cf[1], cf[2]);
+        p.camera.up.set(cf[6], cf[7], cf[8]);
+        p.camera.fov = scene.cams.fov; p.camera.updateProjectionMatrix();
+        p.controls.target.set(cf[0] + cf[3], cf[1] + cf[4], cf[2] + cf[5]);
+        p.camera.lookAt(p.controls.target.x, p.controls.target.y, p.controls.target.z);
+        p.controls.update();
       });
       syncing = false; dirty = true;
     }
@@ -210,6 +228,7 @@
         $('status').textContent = failures + ' 个模型加载失败';
       } else {
         $('play').disabled = false; $('status').textContent = '四模型当前帧已就绪';
+        if (snap) applyCams(requestedFrame);
         scheduleNext();
         const current = selected;
         setTimeout(() => { if (scene === current) ensurePrefetch(current); }, 250);
@@ -231,6 +250,11 @@
       $('load-video').hidden = false;
       $('v').poster = scene.img + '000.jpg';
       $('sel').value = scene.id;
+      snap = !!scene.cams;
+      $('align').hidden = !scene.cams;
+      $('align').setAttribute('aria-pressed', String(snap));
+      $('align').classList.toggle('active', snap);
+      if (snap) $('rot').checked = false;
       document.querySelectorAll('.tab').forEach(tab => {
         const active = tab.dataset.group === scene.group;
         tab.classList.toggle('active', active); tab.setAttribute('aria-pressed', String(active));
@@ -261,6 +285,14 @@
     };
     $('fps').oninput = () => { $('fpsv').textContent = $('fps').value + ' fps'; scheduleNext(); };
     $('reset').onclick = resetView;
+    $('align').onclick = () => {
+      snap = !snap;
+      $('align').setAttribute('aria-pressed', String(snap));
+      $('align').classList.toggle('active', snap);
+      if (snap) { $('rot').checked = false; applyCams(frame); }
+    };
+    // 验收脚本用来核对吸附位姿
+    window.__WV_CAM__ = () => panels.wat3r.camera.position.toArray().map(v => Math.round(v * 1e4) / 1e4);
     $('sync').onchange = () => syncFrom(MODELS[0]);
     $('rot').onchange = () => { dirty = true; };
     $('retry').onclick = () => requestFrame(frame);

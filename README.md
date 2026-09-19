@@ -69,10 +69,17 @@ video_7762649 的源视频是剪辑合辑，开头有一段泳池镜头与主体
 - 分帧路径含源数据哈希，允许浏览器正常 HTTP 缓存。
 - 原始视频点击后才设置下载地址；暂停且视角不变时不重复执行 WebGL 绘制。
 - 置信度滑杆表示保留最高置信度点的百分比，100% 保留全部点。
+- 「对齐输入帧视角」把四个视角吸附到拍当前帧的相机位姿（Wat3R pred 的
+  extrinsic 经与点云相同的中心/半径归一化恢复，逐帧精确对应），拖动时间轴时
+  相机跟随帧移动，点云呈现与输入帧一致的构图。有相机数据的场景默认开启，
+  可切回自由视角；Wild 五个场景没有 pred 位姿，保持 3/4 视角且按钮隐藏。
 
 ## 维护与预览
 
 `scripts/selected-scenes.json` 保存选中场景的原始二进制元数据。
+有 pred.npz 的场景还带 `cams`（逐帧相机中心/朝向/上向量 + fov），由
+`experiments/dynamic_underwater/make_cam_poses.py` 从 Wat3R 的 extrinsic 生成
+（与点云同一套中心/半径归一化，剪过片头的场景自动补偏移）。
 代表场景（前 8 个）的源 bins 在仓库 `clouds_anim/` 内；
 「最差」四组的源 bins 是构建输入，不发布，路径指向
 `../experiments/dynamic_underwater/website/clouds_anim_gh/`（由
