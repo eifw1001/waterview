@@ -3,26 +3,28 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Wild 与 Water3D 精选水下场景，逐帧对比 Wat3R、DA3、Water-VGGT 与 Water-VGGT+WCV 的点云。">
+<meta name="description" content="Wild 与 Water3D 代表场景，以及 Wat3R / Water-VGGT 点云最差场景，逐帧对比四个模型的点云。">
 <title>WaterView · 水下场景四模型对比</title>
-<link rel="stylesheet" href="assets/viewer.css?v=2">
+<link rel="stylesheet" href="assets/viewer.css?v=3">
 <script defer src="assets/three.min.js"></script>
 <script defer src="assets/js/controls/OrbitControls.js"></script>
-<script defer src="assets/scenes.js?v=2"></script>
-<script defer src="assets/viewer.js?v=2"></script>
+<script defer src="assets/scenes.js?v=3"></script>
+<script defer src="assets/viewer.js?v=3"></script>
 </head>
 <body>
 <header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div>
 <h1>同一片水下，四种重建视角。</h1>
-<p class="sub">Wild 差异场景与 Water3D 代表场景 · 四模型同步逐帧对比</p></header>
+<p class="sub">代表场景 + Wat3R / Water-VGGT 最差场景 · 四模型同步逐帧对比</p></header>
 <main>
 <section class="selection" aria-label="选择场景">
 <div class="tabs" role="group" aria-label="数据集">
-<button class="tab active" data-group="uveb" aria-pressed="true">Wild <span>5 个场景</span></button>
-<button class="tab" data-group="water3d" aria-pressed="false">Water3D <span>3 个场景</span></button>
+<button class="tab active" data-group="uveb" aria-pressed="true">Wild <span>代表 · 5 个</span></button>
+<button class="tab" data-group="water3d" aria-pressed="false">Water3D <span>代表 · 3 个</span></button>
+<button class="tab" data-group="wat3r_worst" aria-pressed="false">Wat3R 最差 <span>5 个</span></button>
+<button class="tab" data-group="watervggt_worst" aria-pressed="false">Water-VGGT 最差 <span>5 个</span></button>
 </div>
 <div class="scene-row"><label for="sel">场景</label><select id="sel"></select><p id="description"></p></div>
-<div class="scene-meta"><span id="scene-id"></span><span id="tags"></span></div>
+<div class="scene-meta"><span id="badge" class="badge"></span><span id="scene-id"></span><span id="tags"></span></div>
 </section>
 <section class="toolbar" aria-label="播放与显示设置">
 <div class="timeline"><button id="play" disabled>▶ 播放</button><input aria-label="当前帧" type="range" id="frame" min="0" max="31" value="0"><span id="frv">1 / 32</span><span id="status" role="status" aria-live="polite">正在加载当前帧…</span><button id="retry" hidden>重试</button></div>
@@ -42,7 +44,7 @@
 <section class="reference" aria-label="输入画面">
 <article class="card input-card"><h2>输入帧 <span>与当前点云对应</span></h2><img id="fimg" alt="当前场景输入帧" decoding="async"></article>
 <article class="card video-card" id="vcard"><h2>原始视频 <span>Wild / UVEB</span></h2><div class="video-wrap"><video id="v" controls muted loop playsinline preload="none"></video><button id="load-video">观看原始视频</button></div></article>
-<aside class="notes"><h2>观察方法</h2><p>拖动点云旋转，滚轮缩放。开启视角同步，可在相同视角观察四种方法的结构、轮廓与离散点。</p><p>各模型点云对齐到 Wat3R 参考系。精选案例用于观察差异，不代表完整数据集上的性能排名。</p><p class="muted">Wild 视频来源：UVEB。所有点云均为模型预测结果。</p></aside>
+<aside class="notes"><h2>观察方法</h2><p>拖动点云旋转，滚轮缩放。开启视角同步，可在相同视角观察四种方法的结构、轮廓与离散点。各模型点云对齐到 Wat3R 参考系。</p><p>「Wild」「Water3D」两组为便于观察差异挑选的代表场景，不代表完整数据集上的性能排名。</p><p>「Wat3R 最差」「Water-VGGT 最差」两组按 Water3D 真值点云误差（Chamfer，42 个场景）选出各模型表现最差的 5 个场景，用于观察失效模式。</p><p class="muted">Wild 视频来源：UVEB。所有点云均为模型预测结果。</p></aside>
 </section>
 </main><footer>WaterView · Wild &amp; Water3D · Wat3R / DA3 / Water-VGGT / Water-VGGT+WCV</footer>
 <noscript>请启用 JavaScript 以查看交互点云。</noscript>

@@ -180,6 +180,7 @@
     function loadScene(selected) {
       stop(); scene = selected;
       $('description').textContent = scene.description;
+      $('badge').textContent = scene.badge || '';
       $('scene-id').textContent = scene.id;
       $('tags').textContent = scene.tags;
       $('v').pause(); $('v').removeAttribute('src'); $('v').load();

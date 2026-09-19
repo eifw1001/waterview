@@ -5,18 +5,28 @@
 展示 Wat3R、DA3、Water-VGGT、Water-VGGT+WCV 的逐帧预测点云。
 各模型通过 Umeyama Sim(3) 对齐到 Wat3R 参考系，并共用中心/半径归一化；无 GT 点云。
 
-## 精选场景
+## 场景分组
 
-| 数据集 | 场景 | 展示内容 |
+| 分组 | 场景 | 展示内容 |
 | --- | --- | --- |
-| Wild / UVEB | creature_15 | 高浑浊度鱼群 |
-| Wild / UVEB | creature_14 | 低纹理鱼群近景 |
-| Wild / UVEB | creature_13 | 密集鱼群与局部运动 |
-| Wild / UVEB | arch_08 | 强偏绿结构 |
-| Wild / UVEB | creature_01 | 海龟与珊瑚 |
-| Water3D | cv_1151 | 强偏绿岩礁 |
-| Water3D | cv_1123 | 低对比度岩礁 |
-| Water3D | cv_1000 | 纹理较丰富的岩礁 |
+| Wild · 代表 | creature_15 | 高浑浊度鱼群 |
+| Wild · 代表 | creature_14 | 低纹理鱼群近景 |
+| Wild · 代表 | creature_13 | 密集鱼群与局部运动 |
+| Wild · 代表 | arch_08 | 强偏绿结构 |
+| Wild · 代表 | creature_01 | 海龟与珊瑚 |
+| Water3D · 代表 | cv_1151 | 强偏绿岩礁 |
+| Water3D · 代表 | cv_1123 | 低对比度岩礁 |
+| Water3D · 代表 | cv_1000 | 纹理较丰富的岩礁 |
+| Wat3R 最差 | video_7762649 | 点云散裂（Chamfer 6.37，其余最好 1.38） |
+| Wat3R 最差 | video_6430496 | 结构粘连（3.17 vs 0.47） |
+| Wat3R 最差 | video_31824524 | 飞点失控（2.14 vs 1.63） |
+| Wat3R 最差 | cv_1223 | 浑浊失真（1.18 vs 0.73） |
+| Wat3R 最差 | video_15196554 | 噪声淹没（1.17 vs 0.50） |
+| Water-VGGT 最差 | video_33847329 | 整体糊化（5.44；该场景四模型 Chamfer 均偏高） |
+| Water-VGGT 最差 | video_11273415 | 碎片化（2.55 vs 1.62） |
+| Water-VGGT 最差 | video_34172248 | 层间错位（2.52 vs 0.48） |
+| Water-VGGT 最差 | video_31550645 | 雪片噪声（2.34；+WCV 9.11 同样失效） |
+| Water-VGGT 最差 | video_31824746 | 结构坍缩（2.03 vs 0.30） |
 
 Wild 从原页面的 12 个场景中，按首帧、中间帧、末帧的四模型几何差异筛选前 5 个，
 再检查输入画面。差异分数：每模型每帧按索引步长 8 采样，在已有共同坐标系下，
@@ -24,6 +34,11 @@ Wild 从原页面的 12 个场景中，按首帧、中间帧、末帧的四模�
 五个场景的分数依次为 0.1387、0.1067、0.0893、0.0780、0.0685。
 这些值仅用于筛选视觉差异，不是准确度指标或模型排名。
 Water3D 按输入画面的色偏、能见度和纹理覆盖选取三个案例。
+
+「最差」两组依据 `eval_water3d/results/metrics.json`（Water3D 真值，42 个场景），
+按对应模型点云 Chamfer（point.overall）降序选取：Wat3R 组取绝对误差最大的 5 个，
+并剔除 Wat3R 并非四模型中最差的场景（video_33847329、video_11273415、video_31550645）；
+Water-VGGT 组取绝对误差最大的 5 个，去掉与 Wat3R 组重复的 video_7762649。
 U36K 暂不在页面展示，原始文件保留。
 
 ## 加载方式
@@ -38,6 +53,10 @@ U36K 暂不在页面展示，原始文件保留。
 ## 维护与预览
 
 `scripts/selected-scenes.json` 保存选中场景的原始二进制元数据。
+代表场景（前 8 个）的源 bins 在仓库 `clouds_anim/` 内；
+「最差」两组的源 bins 是构建输入，不发布，路径指向
+`../experiments/dynamic_underwater/website/clouds_anim_gh/`（由
+`experiments/dynamic_underwater/prep_worst_groups.py` 从 eval 结果抽稀生成）。
 运行以下命令无损生成 `clouds_frames/` 和 `assets/scenes.js`：
 
 ```sh
