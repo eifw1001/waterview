@@ -12,7 +12,8 @@ for scene in scenes:
     for model, meta in scene['bins'].items():
         data = (ROOT / meta['url']).read_bytes()
         version = hashlib.sha256(data).hexdigest()[:12]
-        folder = Path('clouds_frames') / scene['id'] / (model + '-' + version)
+        # Scenes appearing in several groups share one frames folder (same bin data).
+        folder = Path('clouds_frames') / scene.get('sid', scene['id']) / (model + '-' + version)
         (ROOT / folder).mkdir(parents=True, exist_ok=True)
         assert len(meta['counts']) == scene['nf'] == len(meta['offsets'])
         for frame, (count, offset) in enumerate(zip(meta['counts'], meta['offsets'])):

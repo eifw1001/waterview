@@ -219,7 +219,12 @@
       stop(); scene = selected;
       $('description').textContent = scene.description;
       $('badge').textContent = scene.badge || '';
-      $('scene-id').textContent = scene.id;
+      $('scene-id').textContent = scene.sid || scene.id;
+      MODELS.forEach(m => {
+        const chip = $('cham_' + m), score = scene.chamfer && scene.chamfer[m];
+        chip.textContent = score != null ? score.toFixed(2) : '';
+        chip.classList.toggle('focus', score != null && scene.focus === m);
+      });
       $('tags').textContent = scene.tags;
       $('v').pause(); $('v').removeAttribute('src'); $('v').load();
       $('vcard').hidden = !scene.video;
@@ -238,7 +243,7 @@
       $('sel').replaceChildren();
       list.forEach(s => {
         const option = document.createElement('option'); option.value = s.id;
-        option.textContent = s.title + ' · ' + s.id; $('sel').appendChild(option);
+        option.textContent = s.title + ' · ' + (s.sid || s.id); $('sel').appendChild(option);
       });
       loadScene(list.find(s => s.id === wanted) || list[0]);
     }

@@ -17,16 +17,26 @@
 | Water3D · 代表 | cv_1151 | 强偏绿岩礁 |
 | Water3D · 代表 | cv_1123 | 低对比度岩礁 |
 | Water3D · 代表 | cv_1000 | 纹理较丰富的岩礁 |
-| Wat3R 最差 | video_7762649 | 点云散裂（Chamfer 6.37，其余最好 1.38） |
-| Wat3R 最差 | video_6430496 | 结构粘连（3.17 vs 0.47） |
-| Wat3R 最差 | video_31824524 | 飞点失控（2.14 vs 1.63） |
-| Wat3R 最差 | cv_1223 | 浑浊失真（1.18 vs 0.73） |
-| Wat3R 最差 | video_15196554 | 噪声淹没（1.17 vs 0.50） |
-| Water-VGGT 最差 | video_33847329 | 整体糊化（5.44；该场景四模型 Chamfer 均偏高） |
-| Water-VGGT 最差 | video_11273415 | 碎片化（2.55 vs 1.62） |
-| Water-VGGT 最差 | video_34172248 | 层间错位（2.52 vs 0.48） |
-| Water-VGGT 最差 | video_31550645 | 雪片噪声（2.34；+WCV 9.11 同样失效） |
-| Water-VGGT 最差 | video_31824746 | 结构坍缩（2.03 vs 0.30） |
+| Wat3R 绝对最差 | video_7762649 | 点云散裂 · Chamfer 6.37（本场最优 da3 1.38） |
+| Wat3R 绝对最差 | video_33847329 | 全场皆难 · 5.35（四模型均 >5，Wat3R 反而最完整） |
+| Wat3R 绝对最差 | video_6430496 | 结构粘连 · 3.17（最优 watervggt 0.47） |
+| Wat3R 绝对最差 | video_31824524 | 飞点失控 · 2.14（最优 watervggt 1.63） |
+| Wat3R 绝对最差 | video_11273415 | 碎片化 · 1.62（Wat3R 实为四家最优，次优 da3 2.23） |
+| Wat3R 相对最差 | video_11634794 | 点云塌缩 · 0.60 vs 最优 0.06（10.0×） |
+| Wat3R 相对最差 | video_6430496 | 3.17 vs 0.47（6.8×） |
+| Wat3R 相对最差 | video_7762649 | 6.37 vs 1.38（4.6×） |
+| Wat3R 相对最差 | video_31650576 | 远场漂移 · 0.68 vs 0.24（2.8×） |
+| Wat3R 相对最差 | video_11138687 | 结构发散 · 0.62 vs 0.23（2.7×） |
+| V-GGT 绝对最差 | video_33847329 | 整体糊化 · 5.44（四模型均 >5） |
+| V-GGT 绝对最差 | video_7762649 | 2.64（最优 da3 1.38） |
+| V-GGT 绝对最差 | video_11273415 | 2.55（最优 wat3r 1.62） |
+| V-GGT 绝对最差 | video_34172248 | 层间错位 · 2.52（最优 da3 0.48） |
+| V-GGT 绝对最差 | video_31550645 | 雪片噪声 · 2.34（最优 wat3r 1.14） |
+| V-GGT 相对最差 | video_31824746 | 结构坍缩 · 2.03 vs 0.30（6.8×） |
+| V-GGT 相对最差 | video_34172248 | 2.52 vs 0.48（5.2×） |
+| V-GGT 相对最差 | video_34808164 | 碎片条带 · 0.69 vs 0.17（4.1×） |
+| V-GGT 相对最差 | video_34675110 | 断裂散落 · 1.43 vs 0.42（3.4×） |
+| V-GGT 相对最差 | cv_1326 | 远场毛刺 · 0.44 vs 0.14（3.2×） |
 
 Wild 从原页面的 12 个场景中，按首帧、中间帧、末帧的四模型几何差异筛选前 5 个，
 再检查输入画面。差异分数：每模型每帧按索引步长 8 采样，在已有共同坐标系下，
@@ -35,14 +45,20 @@ Wild 从原页面的 12 个场景中，按首帧、中间帧、末帧的四模�
 这些值仅用于筛选视觉差异，不是准确度指标或模型排名。
 Water3D 按输入画面的色偏、能见度和纹理覆盖选取三个案例。
 
-「最差」两组依据 `eval_water3d/results/metrics.json`（Water3D 真值，42 个场景），
-按对应模型点云 Chamfer（point.overall）降序选取：Wat3R 组取绝对误差最大的 5 个，
-并剔除 Wat3R 并非四模型中最差的场景（video_33847329、video_11273415、video_31550645）；
-Water-VGGT 组取绝对误差最大的 5 个，去掉与 Wat3R 组重复的 video_7762649。
+「最差」四组依据 `eval_water3d/results/metrics.json`（Water3D 真值，42 个场景）
+的 Chamfer（point.overall），分两个口径各取前 5：
+
+- **绝对最差**：该模型自身 Chamfer 最大的 5 个场景——可能是全场都难
+  （video_33847329 四家均 >5），甚至该模型仍是四家最优（video_11273415 的 Wat3R）。
+- **相对最差**：该模型 ÷ 同场最优模型 倍数最大的 5 个场景——反映该模型独有的失效，
+  如 video_11634794 的 Wat3R 落后 10.0 倍。
+
+同一场景可出现在多个分组（如 video_7762649 同时在 Wat3R 绝对/相对与 V-GGT 绝对三组）；
+条目 id 加后缀去重，`sid` 保留真实场景名，帧数据共用同一目录。
+页面卡片标题栏的数字即各模型在本场的 Chamfer，越小越好，当前关注的模型高亮。
 U36K 暂不在页面展示，原始文件保留。
-video_7762649 与 video_15196554 的源视频是剪辑合辑，开头各有一段泳池镜头
-和水下仰视水面的镜头，与主体场景硬切；已剪掉片头（分别保留 30、26 帧，
-静帧重新编号），保证输入帧与点云对应。
+video_7762649 的源视频是剪辑合辑，开头有一段泳池镜头与主体硬切；
+已剪掉片头（保留 30 帧，静帧重新编号），保证输入帧与点云对应。
 
 ## 加载方式
 
@@ -58,9 +74,10 @@ video_7762649 与 video_15196554 的源视频是剪辑合辑，开头各有一�
 
 `scripts/selected-scenes.json` 保存选中场景的原始二进制元数据。
 代表场景（前 8 个）的源 bins 在仓库 `clouds_anim/` 内；
-「最差」两组的源 bins 是构建输入，不发布，路径指向
+「最差」四组的源 bins 是构建输入，不发布，路径指向
 `../experiments/dynamic_underwater/website/clouds_anim_gh/`（由
-`experiments/dynamic_underwater/prep_worst_groups.py` 从 eval 结果抽稀生成）。
+`experiments/dynamic_underwater/make_worst_groups.py` 按两个口径从 metrics.json
+选出并抽稀生成）。
 运行以下命令无损生成 `clouds_frames/` 和 `assets/scenes.js`：
 
 ```sh
@@ -73,7 +90,7 @@ python3 -m http.server 8765 --bind 127.0.0.1
 
 浏览器验收：安装 Playwright 及其 Chromium，在预览服务启动后运行
 `node scripts/test-viewer.cjs`（或通过 `NODE_PATH` 指向外部 Playwright 安装）。
-脚本覆盖首屏请求量、18 个场景、四模型、徽标、置信度、播放、缓存、刷新定位、
-失败重试、过期请求和手机布局；截图写入 `/tmp/waterview-desktop.png`、
+脚本覆盖首屏请求量、28 个场景、四模型、绝对/相对徽标与分数、置信度、播放、缓存、
+刷新定位、失败重试、过期请求和手机布局；截图写入 `/tmp/waterview-desktop.png`、
 `/tmp/waterview-worst.png` 与 `/tmp/waterview-mobile.png`。
 视频数据来自 UVEB（MIT）。
