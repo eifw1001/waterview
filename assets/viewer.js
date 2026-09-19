@@ -5,10 +5,11 @@
   const SCENES = window.WATERVIEW_SCENES;
   const panels = {};
   const cache = new Map();
-  const CACHE_FRAMES = 96; // At most 12 MiB for the current 8,000-point frames.
+  const CACHE_FRAMES = 288; // Two full 32-frame scenes = 256 model-frames (~32 MiB).
   let scene, frame = 0, confidence = 100, playing = false, loading = false;
   let requestId = 0, controller, timer, dirty = true, syncing = false;
   let lastTime = performance.now();
+  let prefetchAbort = null, prefetchScene = null;
 
   function fatal(error) {
     $('status').textContent = '无法初始化点云';
@@ -127,6 +128,41 @@
     function stop() {
       playing = false; clearTimeout(timer); $('play').textContent = '▶ 播放';
     }
+    // After the first frame paints, quietly load the whole scene in the
+    // background so playback and timeline drags never wait on the network.
+    function ensurePrefetch(current) {
+      if (prefetchScene === current.id) return;
+      if (prefetchAbort) prefetchAbort.abort();
+      prefetchScene = current.id;
+      const signal = (prefetchAbort = new AbortController()).signal;
+      const tasks = [];
+      for (let step = 1; step < current.nf; step++) {
+        const f = (frame + step) % current.nf;
+        MODELS.forEach(m => tasks.push({m, f}));
+      }
+      for (let k = 0; k < current.nf; k++) { // stills are small; warm them all
+        new Image().src = current.img + pad(k) + '.jpg';
+      }
+      let next = 0, done = 0;
+      const worker = async () => {
+        while (!signal.aborted && next < tasks.length) {
+          const t = tasks[next++];
+          try {
+            const meta = current.bins[t.m];
+            await getFrame(meta.path + pad(t.f) + '.bin', meta.counts[t.f], signal);
+          } catch (error) {
+            if (!signal.aborted) prefetchAbort.abort(); // on-demand loading still reports errors
+            return;
+          }
+          if (++done % 16 === 0 && !loading && scene === current)
+            $('status').textContent = '四模型当前帧已就绪 · 预载 ' + done + '/' + tasks.length;
+        }
+      };
+      Promise.all([worker(), worker(), worker()]).then(() => {
+        if (!signal.aborted && scene === current && !loading)
+          $('status').textContent = '四模型当前帧已就绪 · 全部帧已缓存';
+      });
+    }
     function scheduleNext() {
       clearTimeout(timer);
       if (playing && !loading) timer = setTimeout(() => requestFrame((frame + 1) % scene.nf), 1000 / +$('fps').value);
@@ -175,6 +211,8 @@
       } else {
         $('play').disabled = false; $('status').textContent = '四模型当前帧已就绪';
         scheduleNext();
+        const current = selected;
+        setTimeout(() => { if (scene === current) ensurePrefetch(current); }, 250);
       }
     }
     function loadScene(selected) {
