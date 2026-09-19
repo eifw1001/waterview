@@ -40,6 +40,9 @@ Water3D 按输入画面的色偏、能见度和纹理覆盖选取三个案例。
 并剔除 Wat3R 并非四模型中最差的场景（video_33847329、video_11273415、video_31550645）；
 Water-VGGT 组取绝对误差最大的 5 个，去掉与 Wat3R 组重复的 video_7762649。
 U36K 暂不在页面展示，原始文件保留。
+video_7762649 与 video_15196554 的源视频是剪辑合辑，开头各有一段泳池镜头
+和水下仰视水面的镜头，与主体场景硬切；已剪掉片头（分别保留 30、26 帧，
+静帧重新编号），保证输入帧与点云对应。
 
 ## 加载方式
 
@@ -70,6 +73,7 @@ python3 -m http.server 8765 --bind 127.0.0.1
 
 浏览器验收：安装 Playwright 及其 Chromium，在预览服务启动后运行
 `node scripts/test-viewer.cjs`（或通过 `NODE_PATH` 指向外部 Playwright 安装）。
-脚本覆盖首屏请求量、8 场景、四模型、置信度、播放、缓存、刷新定位、失败重试、
-过期请求和手机布局；截图写入 `/tmp/waterview-desktop.png` 与 `/tmp/waterview-mobile.png`。
+脚本覆盖首屏请求量、18 个场景、四模型、徽标、置信度、播放、缓存、刷新定位、
+失败重试、过期请求和手机布局；截图写入 `/tmp/waterview-desktop.png`、
+`/tmp/waterview-worst.png` 与 `/tmp/waterview-mobile.png`。
 视频数据来自 UVEB（MIT）。
