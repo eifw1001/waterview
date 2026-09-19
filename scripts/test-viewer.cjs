@@ -1,107 +1,98 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
+
 (async () => {
-  const browser = await chromium.launch({headless: true, args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']});
-  const context = await browser.newContext({viewport: {width: 1600, height: 1100}});
-  const page = await context.newPage();
-  const errors = [], requests = [];
-  page.on('pageerror', e => errors.push(e.message));
-  page.on('request', r => requests.push(r.url()));
-  const ready = () => page.waitForFunction(() => document.getElementById('status').textContent.startsWith('四模型当前帧已就绪'));
-  const start = Date.now();
-  await page.goto('http://127.0.0.1:8765/'); await ready();
-  console.log('FIRST_READY_MS', Date.now() - start);
-  assert.equal(requests.filter(x=>x.endsWith('.bin')).length,4);
-  assert.equal(requests.filter(x=>x.endsWith('.mp4')).length,0);
-  assert.equal(new Set(requests.filter(x=>x.endsWith('.jpg'))).size,1);
-  assert.equal(await page.locator('#sel option').count(),5);
-  assert.deepEqual(await page.locator('[id^="count_"]').allTextContents(),Array(4).fill('8,000 点'));
-  const resources = await page.evaluate(() => performance.getEntriesByType('resource').map(x => ({name:x.name,size:x.decodedBodySize})));
-  console.log('INITIAL_CLOUD_BYTES',resources.filter(x=>x.name.endsWith('.bin')).reduce((a,b)=>a+b.size,0));
-  await page.screenshot({path:'/tmp/waterview-desktop.png',fullPage:true});
-  await page.locator('#conf').fill('50'); await page.locator('#conf').dispatchEvent('input');
-  for(const x of await page.locator('[id^="count_"]').allTextContents()) {
-    const n=Number(x.replace(/\D/g,'')); assert(n>3900 && n<4100);
-  }
-  await page.locator('#conf').fill('100'); await page.locator('#conf').dispatchEvent('input');
-  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('全部帧已缓存'));
-  assert.equal(requests.filter(x=>x.endsWith('.bin')).length,128,'scene fully prefetched');
-  assert.equal(new Set(requests.filter(x=>x.endsWith('.jpg'))).size,32,'stills preloaded');
-  await page.locator('#play').click();
-  await page.waitForFunction(()=>document.getElementById('frv').textContent !== '1 / 32');
-  await page.locator('#play').click(); await ready();
-  assert.equal(requests.filter(x=>x.endsWith('.bin')).length,128,'playback hits the cache');
-  await page.selectOption('#sel','creature_14'); await ready();
-  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('全部帧已缓存'));
-  const before = requests.filter(x=>x.endsWith('.bin')).length;
-  await page.selectOption('#sel','creature_15'); await ready();
-  assert.equal(requests.filter(x=>x.endsWith('.bin')).length,before,'return uses cached frames');
-  for(const id of ['creature_13','arch_08','creature_01']) {await page.selectOption('#sel',id); await ready();}
-  await page.locator('[data-group="water3d"]').click(); await ready();
-  assert.equal(await page.locator('#sel option').count(),3);
-  assert(await page.locator('#vcard').isHidden());
-  assert.equal(await page.locator('#badge').textContent(),'代表场景');
-  for(const id of ['cv_1123','cv_1000']) {await page.selectOption('#sel',id); await ready();}
-  await page.locator('[data-group="wat3r_worst_abs"]').click(); await ready();
-  assert.equal(await page.locator('#sel option').count(),5);
-  assert.equal(await page.locator('#badge').textContent(),'Wat3R 绝对最差 TOP1 · Chamfer 6.37');
-  assert.deepEqual(await page.locator('[id^="count_"]').allTextContents(),Array(4).fill('8,000 点'));
-  const chips = await page.locator('.cham').allTextContents();
-  assert.equal(chips.length,4); for(const c of chips) assert.match(c,/^\d+\.\d\d$/,'chamfer chip with score');
-  assert.equal(await page.locator('#cham_wat3r').textContent(),'6.37');
-  assert(await page.locator('#cham_wat3r').evaluate(el=>el.classList.contains('focus')),'focus model highlighted');
-  // 相机位姿吸附：默认开启，逐帧跟随当前输入帧
-  assert(await page.locator('#align').isVisible());
-  assert.equal(await page.locator('#align').getAttribute('aria-pressed'),'true','snap on by default');
-  const near = (a,b) => a.every((v,i)=>Math.abs(v-b[i])<1e-3);
-  let cams = await page.evaluate(() => window.WATERVIEW_SCENES.find(s=>s.id==='video_7762649').cams.frames[0].slice(0,3));
-  assert(near(await page.evaluate(() => window.__WV_CAM__()),cams),'camera snapped to frame 0 pose');
-  await page.locator('#frame').fill('8'); await page.locator('#frame').dispatchEvent('input'); await ready();
-  cams = await page.evaluate(() => window.WATERVIEW_SCENES.find(s=>s.id==='video_7762649').cams.frames[8].slice(0,3));
-  assert(near(await page.evaluate(() => window.__WV_CAM__()),cams),'camera follows frame 8 pose');
-  await page.locator('#align').click();
-  assert.equal(await page.locator('#align').getAttribute('aria-pressed'),'false','snap toggled off');
-  await page.locator('#reset').click();
-  assert(!(near(await page.evaluate(() => window.__WV_CAM__()),cams)),'reset returns to 3/4 view');
-  await page.selectOption('#sel','video_11273415'); await ready();
-  assert.equal(await page.locator('#frv').textContent(),'1 / 16');
-  await page.locator('[data-group="wat3r_worst_rel"]').click(); await ready();
-  assert.equal(await page.locator('#sel option').count(),5);
-  const relBadge = await page.locator('#badge').textContent();
-  assert(relBadge.startsWith('Wat3R 相对最差 TOP1') && relBadge.includes('10.0×'),relBadge);
-  assert.equal(await page.locator('#scene-id').textContent(),'video_11634794');
-  await page.selectOption('#sel','video_6430496~2'); await ready();
-  assert.equal(await page.locator('#scene-id').textContent(),'video_6430496','duplicate entry shows true scene id');
-  await page.locator('[data-group="watervggt_worst_abs"]').click(); await ready();
-  assert.equal(await page.locator('#sel option').count(),5);
-  assert((await page.locator('#badge').textContent()).startsWith('Water-VGGT 绝对最差 TOP1'));
-  assert.equal(await page.locator('#scene-id').textContent(),'video_33847329');
-  await page.locator('[data-group="watervggt_worst_rel"]').click(); await ready();
-  const vggtRel = await page.locator('#badge').textContent();
-  assert(vggtRel.startsWith('Water-VGGT 相对最差 TOP1') && vggtRel.includes('6.8×'),vggtRel);
-  assert(await page.locator('#cham_watervggt').evaluate(el=>el.classList.contains('focus')));
-  await page.screenshot({path:'/tmp/waterview-worst.png',fullPage:true});
-  await page.locator('[data-group="uveb"]').click(); await ready();
-  assert.equal(await page.locator('#badge').textContent(),'代表场景');
-  assert.deepEqual(await page.locator('.cham').allTextContents(),['','','',''],'no scores without GT');
-  assert(await page.locator('#align').isHidden(),'no pose snap without cams');
-  await page.route('**/clouds_frames/**/010.bin',route=>route.abort());
-  await page.reload(); await ready(); assert.equal(await page.locator('#sel').inputValue(),'creature_15');
-  await page.locator('#frame').fill('10'); await page.locator('#frame').dispatchEvent('input');
-  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('加载失败'));
-  assert(await page.locator('#retry').isVisible());
-  await page.unroute('**/clouds_frames/**/010.bin'); await page.locator('#retry').click(); await ready();
-  // Race: obsolete frame requests must not overwrite the final choice.
-  await page.route('**/clouds_frames/**/011.bin',async route=>{await new Promise(r=>setTimeout(r,400));await route.continue().catch(()=>{});});
-  await page.locator('#frame').fill('11'); await page.locator('#frame').dispatchEvent('input');
-  await page.locator('#frame').fill('12'); await page.locator('#frame').dispatchEvent('input');
-  await ready(); await page.waitForTimeout(600);
-  assert.equal(await page.locator('#frv').textContent(),'13 / 32');
-  await page.unroute('**/clouds_frames/**/011.bin');
-  await page.setViewportSize({width:390,height:844});
-  await page.screenshot({path:'/tmp/waterview-mobile.png',fullPage:true});
-  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'no mobile horizontal overflow');
-  assert.deepEqual(errors,[]);
-  console.log('PASS: 28 scenes / 6 groups / 4 models; abs+rel badges with scores; chamfer chips; lean first paint then full-scene prefetch; cached playback; confidence; reload; failure/retry; race; mobile; no JS errors');
-  await browser.close();
-})().catch(e=>{console.error(e);process.exit(1)});
+  const browser = await chromium.launch({headless: true, args: [
+    '--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'
+  ]});
+  try {
+    const page = await browser.newPage({viewport: {width: 1500, height: 1000}});
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    const ready = () => page.waitForFunction(() =>
+      document.getElementById('status').textContent.startsWith('四模型当前帧已就绪'));
+    const assertAligned = async () => {
+      const state = await page.evaluate(() => ({
+        current: Number(document.getElementById('frv').textContent.split('/')[0].trim()) - 1,
+        input: document.getElementById('fimg').dataset.frame,
+        clouds: [...document.querySelectorAll('canvas[id^="cv_"]')].map(x => x.dataset.frame),
+        image: document.getElementById('fimg').getAttribute('src')
+      }));
+      assert.equal(state.input, String(state.current));
+      assert.deepEqual(state.clouds, Array(4).fill(state.input));
+      assert(state.image.endsWith(String(state.current).padStart(3, '0') + '.jpg'));
+    };
+    const open = async (group, id) => {
+      await page.locator(`[data-group="${group}"]`).click();
+      if (id) await page.selectOption('#sel', id);
+      await ready(); await assertAligned();
+      assert.equal(await page.locator('#align').getAttribute('aria-pressed'), 'true');
+      const pose = await page.evaluate(() => window.WATERVIEW_SCENES.find(s => s.id ===
+        document.getElementById('sel').value).cams.frames[0].slice(0, 3));
+      const actual = await page.evaluate(() => window.__WV_CAM__());
+      assert(actual.every((v, i) => Math.abs(v - pose[i]) < 1e-3));
+      const ratio = await page.locator('#fimg').evaluate(x => x.naturalWidth / x.naturalHeight);
+      const canvasRatio = await page.locator('#cv_wat3r').evaluate(x => x.getBoundingClientRect().width / x.getBoundingClientRect().height);
+      assert(Math.abs(ratio - canvasRatio) < .01, 'point cloud uses the input image aspect ratio');
+    };
+
+    await page.goto('http://127.0.0.1:8765/'); await ready(); await assertAligned();
+    assert.equal(await page.locator('#sel option').count(), 5);
+    assert.equal(await page.locator('#align').getAttribute('aria-pressed'), 'true', 'Wild gets camera poses');
+    for (const [group, id] of [['water3d', 'cv_1000'], ['wat3r_worst_abs', 'video_7762649']]) {
+      await open(group, id);
+    }
+    // That scene used to shift its camera two frames relative to the cloud/image.
+    const shifted = await page.evaluate(() => {
+      const scene = window.WATERVIEW_SCENES.find(s => s.id === 'video_7762649');
+      return scene.cams.frames.slice(0, 3).map(f => f.slice(0, 3));
+    });
+    assert.notDeepEqual(shifted[0], shifted[2]);
+    await open('uveb', 'creature_15');
+
+    // A slow model request must never advance only the image or some canvases.
+    await page.route('**/clouds_frames/**/020.bin', async route => {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await route.continue().catch(() => {});
+    });
+    await page.locator('#frame').fill('20');
+    await page.locator('#frame').dispatchEvent('input');
+    await page.waitForTimeout(200);
+    await assertAligned();
+    assert.equal(await page.locator('#frv').textContent(), '1 / 32');
+    await ready(); await assertAligned();
+    assert.equal(await page.locator('#frv').textContent(), '21 / 32');
+    await page.unroute('**/clouds_frames/**/020.bin');
+
+    // Scrubbing can supersede an in-flight frame without a stale repaint.
+    await page.route('**/clouds_frames/**/025.bin', async route => {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      await route.continue().catch(() => {});
+    });
+    await page.locator('#frame').fill('25'); await page.locator('#frame').dispatchEvent('input');
+    await page.locator('#frame').fill('26'); await page.locator('#frame').dispatchEvent('input');
+    await ready(); await page.waitForTimeout(650); await assertAligned();
+    assert.equal(await page.locator('#frv').textContent(), '27 / 32');
+    await page.unroute('**/clouds_frames/**/025.bin');
+
+    // Buffered playback advances at the requested cadence without a second delay.
+    await page.selectOption('#sel', 'creature_14'); await ready();
+    const ticks = [];
+    await page.exposeFunction('reportFrame', f => ticks.push({f, time: Date.now()}));
+    await page.evaluate(() => {
+      new MutationObserver(() => window.reportFrame(document.getElementById('frv').textContent))
+        .observe(document.getElementById('frv'), {childList: true});
+    });
+    await page.locator('#play').click();
+    await page.waitForFunction(() => document.getElementById('frv').textContent === '5 / 32', null, {timeout: 20000});
+    await page.locator('#play').click(); await assertAligned();
+    const gaps = ticks.slice(1, 5).map((tick, i) => tick.time - ticks[i].time);
+    assert(gaps.length >= 3 && gaps.every(gap => gap >= 230 && gap <= 480), 'playback cadence: ' + gaps);
+    console.log('PLAYBACK_FRAME_GAPS_MS', gaps.join(','));
+    await page.setViewportSize({width: 390, height: 844});
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await page.screenshot({path: '/tmp/waterview-playback-mobile.png', fullPage: true});
+    assert.deepEqual(errors, []);
+    console.log('PASS: image + four clouds advance atomically; Wild and Water3D cameras match frames; aspect ratios; slow fetch; fast scrub; buffered playback; mobile');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

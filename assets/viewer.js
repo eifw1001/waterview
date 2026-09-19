@@ -6,11 +6,15 @@
   const panels = {};
   const cache = new Map();
   const CACHE_FRAMES = 288; // Two full 32-frame scenes = 256 model-frames (~32 MiB).
-  let scene, frame = 0, confidence = 100, playing = false, loading = false;
+  const imageCache = new Map();
+  const IMAGE_CACHE_FRAMES = 48;
+  let scene, frame = 0, pendingFrame = 0, confidence = 100, playing = false, loading = false;
   let snap = false; // 吸附到当前帧相机位姿（有 cams 数据的场景默认开启）
   let requestId = 0, controller, timer, dirty = true, syncing = false;
+  let lastAdvance = 0;
   let lastTime = performance.now();
   let prefetchAbort = null, prefetchScene = null;
+  const inflight = new Map();
 
   function fatal(error) {
     $('status').textContent = '无法初始化点云';
@@ -98,13 +102,20 @@
         const data = cache.get(url); cache.delete(url); cache.set(url, data);
         return data;
       }
-      const response = await fetch(url, {signal, cache: 'default'});
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const data = await response.arrayBuffer();
-      if (data.byteLength !== count * 16) throw new Error('点云数据不完整');
-      cache.set(url, data);
-      while (cache.size > CACHE_FRAMES) cache.delete(cache.keys().next().value);
-      return data;
+      const existing = inflight.get(url);
+      if (existing && !existing.signal.aborted) return existing.task;
+      if (existing) inflight.delete(url);
+      const task = (async () => {
+        const response = await fetch(url, {signal, cache: 'default'});
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.arrayBuffer();
+        if (data.byteLength !== count * 16) throw new Error('点云数据不完整');
+        cache.set(url, data);
+        while (cache.size > CACHE_FRAMES) cache.delete(cache.keys().next().value);
+        return data;
+      })();
+      inflight.set(url, {task, signal});
+      try { return await task; } finally { if (inflight.get(url)?.task === task) inflight.delete(url); }
     }
     function drawFrame(model) {
       const p = panels[model];
@@ -146,96 +157,112 @@
     function stop() {
       playing = false; clearTimeout(timer); $('play').textContent = '▶ 播放';
     }
-    // After the first frame paints, quietly load the whole scene in the
-    // background so playback and timeline drags never wait on the network.
-    function ensurePrefetch(current) {
-      if (prefetchScene === current.id) return;
-      if (prefetchAbort) prefetchAbort.abort();
-      prefetchScene = current.id;
-      const signal = (prefetchAbort = new AbortController()).signal;
-      const tasks = [];
-      for (let step = 1; step < current.nf; step++) {
-        const f = (frame + step) % current.nf;
-        MODELS.forEach(m => tasks.push({m, f}));
+    function imageFor(current, next) {
+      const url = current.img + pad(next) + '.jpg';
+      if (imageCache.has(url)) {
+        const task = imageCache.get(url);
+        imageCache.delete(url); imageCache.set(url, task);
+        return task;
       }
-      for (let k = 0; k < current.nf; k++) { // stills are small; warm them all
-        new Image().src = current.img + pad(k) + '.jpg';
-      }
-      let next = 0, done = 0;
-      const worker = async () => {
-        while (!signal.aborted && next < tasks.length) {
-          const t = tasks[next++];
-          try {
-            const meta = current.bins[t.m];
-            await getFrame(meta.path + pad(t.f) + '.bin', meta.counts[t.f], signal);
-          } catch (error) {
-            if (!signal.aborted) prefetchAbort.abort(); // on-demand loading still reports errors
-            return;
-          }
-          if (++done % 16 === 0 && !loading && scene === current)
-            $('status').textContent = '四模型当前帧已就绪 · 预载 ' + done + '/' + tasks.length;
-        }
-      };
-      Promise.all([worker(), worker(), worker()]).then(() => {
-        if (!signal.aborted && scene === current && !loading)
-          $('status').textContent = '四模型当前帧已就绪 · 全部帧已缓存';
+      const image = new Image();
+      image.src = url;
+      const task = image.decode().then(() => image).catch(error => {
+        if (imageCache.get(url) === task) imageCache.delete(url);
+        throw error;
       });
+      imageCache.set(url, task);
+      while (imageCache.size > IMAGE_CACHE_FRAMES) imageCache.delete(imageCache.keys().next().value);
+      return task;
+    }
+    async function dataFor(current, next, signal) {
+      return Promise.all(MODELS.map(m => {
+        const meta = current.bins[m];
+        return getFrame(meta.path + pad(next) + '.bin', meta.counts[next], signal);
+      }));
+    }
+    // Keep only a small moving window ready. Fetching the entire scene at once
+    // competes with the frame being shown and makes a cold first play stutter.
+    function warmAhead(current, from, distance = 3) {
+      if (prefetchScene !== current.id) {
+        if (prefetchAbort) prefetchAbort.abort();
+        prefetchAbort = new AbortController(); prefetchScene = current.id;
+      }
+      const signal = prefetchAbort.signal;
+      const tasks = [];
+      for (let step = 1; step <= distance; step++) {
+        const next = (from + step) % current.nf;
+        tasks.push(dataFor(current, next, signal), imageFor(current, next));
+      }
+      return Promise.allSettled(tasks);
+    }
+    function buffered(current, next) {
+      return MODELS.every(m => cache.has(current.bins[m].path + pad(next) + '.bin'));
     }
     function scheduleNext() {
       clearTimeout(timer);
-      if (playing && !loading) timer = setTimeout(() => requestFrame((frame + 1) % scene.nf), 1000 / +$('fps').value);
+      if (playing && !loading) {
+        const delay = Math.max(0, lastAdvance + 1000 / +$('fps').value - performance.now());
+        timer = setTimeout(() => requestFrame((frame + 1) % scene.nf), delay);
+      }
     }
     async function requestFrame(next) {
+      next = Math.max(0, Math.min(next, scene.nf - 1));
+      if (loading && pendingFrame === next) return;
       clearTimeout(timer);
       if (controller) controller.abort();
       controller = new AbortController();
       const signal = controller.signal, id = ++requestId, selected = scene;
-      frame = Math.max(0, Math.min(next, scene.nf - 1));
-      const requestedFrame = frame;
+      const requestedFrame = next;
+      pendingFrame = requestedFrame;
       loading = true;
-      $('play').disabled = !playing;
+      $('play').disabled = false;
       $('retry').hidden = true;
       $('status').textContent = '正在加载当前帧…';
-      $('frame').max = scene.nf - 1; $('frame').value = frame;
-      $('frv').textContent = (frame + 1) + ' / ' + scene.nf;
-      $('fimg').src = scene.img + pad(frame) + '.jpg';
-      $('fimg').alt = scene.title + '，第 ' + (frame + 1) + ' 帧';
+      const results = await Promise.allSettled([dataFor(selected, requestedFrame, signal), imageFor(selected, requestedFrame)]);
+      if (id !== requestId) return;
+      loading = false;
+      const failure = results.find(result => result.status === 'rejected');
+      if (failure) {
+        stop(); $('play').disabled = true; $('retry').hidden = false;
+        $('status').textContent = '当前帧加载失败：' + failure.reason.message;
+      } else {
+        const data = results[0].value, image = results[1].value;
+        frame = requestedFrame;
+        $('frame').max = scene.nf - 1; $('frame').value = frame;
+        $('frv').textContent = (frame + 1) + ' / ' + scene.nf;
+        image.id = 'fimg';
+        image.alt = scene.title + '，第 ' + (frame + 1) + ' 帧';
+        image.dataset.frame = String(frame);
+        $('fimg').replaceWith(image);
+        // Match the projection viewport to the actual input frame. Water3D
+        // scenes do not all have the same aspect ratio.
+        MODELS.forEach(m => {
+          panels[m].renderer.domElement.style.aspectRatio = image.naturalWidth + '/' + image.naturalHeight;
+        });
+        resize();
+        MODELS.forEach((m, i) => {
+          panels[m].data = data[i]; panels[m].count = selected.bins[m].counts[frame]; drawFrame(m);
+          panels[m].renderer.domElement.dataset.frame = String(frame);
+        });
+        $('play').disabled = false; $('status').textContent = '四模型当前帧已就绪';
+        if (snap) applyCams(requestedFrame);
+        lastAdvance = performance.now();
+        warmAhead(selected, frame);
+        scheduleNext();
+      }
+    }
+    function loadScene(selected) {
+      stop(); scene = selected; frame = 0; pendingFrame = 0;
+      const blank = new Image();
+      blank.id = 'fimg'; blank.alt = '正在加载输入帧';
+      $('fimg').replaceWith(blank);
       MODELS.forEach(m => {
         panels[m].data = null; panels[m].geometry.setDrawRange(0, 0);
+        delete panels[m].renderer.domElement.dataset.frame;
         $('count_' + m).textContent = '';
         $('ld_' + m).hidden = false; $('ld_' + m).textContent = '加载当前帧…';
       });
       dirty = true;
-      const results = await Promise.allSettled(MODELS.map(async m => {
-        const meta = selected.bins[m];
-        const count = meta.counts[requestedFrame];
-        const data = await getFrame(meta.path + pad(requestedFrame) + '.bin', count, signal);
-        if (id !== requestId) return;
-        panels[m].data = data; panels[m].count = count; drawFrame(m);
-      }));
-      if (id !== requestId) return;
-      loading = false;
-      let failures = 0;
-      results.forEach((result, i) => {
-        if (result.status === 'rejected') {
-          failures++;
-          $('ld_' + MODELS[i]).hidden = false;
-          $('ld_' + MODELS[i]).textContent = '加载失败：' + result.reason.message;
-        }
-      });
-      if (failures) {
-        stop(); $('play').disabled = true; $('retry').hidden = false;
-        $('status').textContent = failures + ' 个模型加载失败';
-      } else {
-        $('play').disabled = false; $('status').textContent = '四模型当前帧已就绪';
-        if (snap) applyCams(requestedFrame);
-        scheduleNext();
-        const current = selected;
-        setTimeout(() => { if (scene === current) ensurePrefetch(current); }, 250);
-      }
-    }
-    function loadScene(selected) {
-      stop(); scene = selected;
       $('description').textContent = scene.description;
       $('badge').textContent = scene.badge || '';
       $('scene-id').textContent = scene.sid || scene.id;
@@ -295,10 +322,20 @@
     window.__WV_CAM__ = () => panels.wat3r.camera.position.toArray().map(v => Math.round(v * 1e4) / 1e4);
     $('sync').onchange = () => syncFrom(MODELS[0]);
     $('rot').onchange = () => { dirty = true; };
-    $('retry').onclick = () => requestFrame(frame);
+    $('retry').onclick = () => requestFrame(pendingFrame);
     $('play').onclick = () => {
       if (playing) stop();
-      else { playing = true; $('play').textContent = '❚❚ 暂停'; scheduleNext(); }
+      else {
+        playing = true; $('play').textContent = '❚❚ 暂停';
+        const current = scene, id = requestId;
+        $('status').textContent = '正在缓冲后续帧…';
+        warmAhead(current, frame, 2).then(() => {
+          if (!playing || scene !== current || requestId !== id) return;
+          lastAdvance = performance.now();
+          $('status').textContent = '四模型当前帧已就绪';
+          scheduleNext();
+        });
+      }
     };
     $('load-video').onclick = () => {
       if (!scene.video) return;
@@ -308,9 +345,9 @@
     document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else dirty = true; });
     function resize() {
       MODELS.forEach(m => {
-        const p = panels[m], width = p.renderer.domElement.getBoundingClientRect().width;
-        if (width > 0) p.renderer.setSize(width, width, false);
-        p.camera.aspect = 1; p.camera.updateProjectionMatrix();
+        const p = panels[m], bounds = p.renderer.domElement.getBoundingClientRect();
+        if (bounds.width > 0 && bounds.height > 0) p.renderer.setSize(bounds.width, bounds.height, false);
+        p.camera.aspect = bounds.width / bounds.height; p.camera.updateProjectionMatrix();
       }); dirty = true;
     }
     window.addEventListener('resize', resize);
