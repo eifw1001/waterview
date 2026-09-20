@@ -1,35 +1,86 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · 汇报首页</title><link rel="stylesheet" href="assets/viewer.css?v=18"><script defer src="assets/benchmark.js?v=3"></script><script defer src="assets/reports.js?v=5"></script></head><body>
-<header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div><h1>水下三维重建 · 方法与定量结果</h1><p class="sub">方法核心 → WCV 补充说明 → 指标在测什么 → 实际跑出来怎样。</p></header>
-<nav class="site-nav" aria-label="页面导航"><a href="index.html" aria-current="page">汇报首页</a><a href="viewer.html">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a><a href="discussion.html">讨论问题</a></nav>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WaterView · 方法与结果</title>
+<link rel="stylesheet" href="assets/viewer.css?v=19">
+<script defer src="assets/model-labels.js?v=1"></script>
+<script defer src="assets/benchmark.js?v=4"></script>
+<script defer src="assets/reports.js?v=6"></script>
+</head>
+<body>
+<header><h1>水下三维重建 · 方法与结果</h1></header>
+<nav class="site-nav" aria-label="页面导航">
+  <a href="index.html" aria-current="page">汇报首页</a>
+  <a href="viewer.html">点云 + 深度</a>
+  <a href="gt.html">GT 检查</a>
+  <a href="depth.html">深度画廊</a>
+  <a href="discussion.html">讨论问题</a>
+</nav>
 <main>
-<section class="panel method-overview compact-methods" aria-label="Method Overview">
-<div class="section-kicker">METHOD OVERVIEW</div>
-<div class="section-heading"><div><h2>两种方法的核心机制</h2></div></div>
-<div class="method-grid">
-<article class="method-card"><div class="method-tag">Wat3R</div><h3>VGGT + Mean Teacher 半监督适配</h3><ul class="method-points"><li><b>Base：</b>VGGT</li><li><b>训练：</b>合成水下有标注数据 + 真实无标注视频</li><li><b>学习方式：</b>Teacher–Student 伪标签</li><li><b>约束：</b>Cross-view Consistency</li></ul><p class="method-summary"><strong>核心定位：</strong>把预训练 VGGT 适配到真实水下域。</p></article>
-<article class="method-card"><div class="method-tag">Water-VGGT</div><h3>把当前水况注入 VGGT 的几何推理</h3><ul class="method-points"><li><b>Base：</b>VGGT</li><li><b>条件表示：</b>WCV 显式表示水体条件</li><li><b>注入方式：</b>FiLM + Conditional Attention Bias → Transformer</li><li><b>预测模块：</b>Camera / Dense Geometry / Tracking Heads</li></ul><p class="method-summary"><strong>核心定位：</strong>让模型根据当前水况调整几何推理。</p></article>
-</div>
-
+<section class="panel compact-methods" aria-label="方法">
+  <div class="section-heading"><div><h2>方法</h2></div></div>
+  <div class="method-grid">
+    <article class="method-card">
+      <div class="method-tag">Wat3R</div>
+      <h3>VGGT + Mean Teacher 半监督适配</h3>
+      <ul class="method-points">
+        <li><b>基础模型：</b>VGGT</li>
+        <li><b>训练数据：</b>合成水下有标注数据 + 真实无标注视频</li>
+        <li><b>学习方式：</b>Teacher–Student 伪标签与跨视图一致性</li>
+      </ul>
+      <p class="method-summary">把预训练 VGGT 适配到真实水下域。</p>
+      <details><summary>论文与实现</summary><p>论文描述了有标注陆地图像的水下退化合成，以及真实无标注视频上的一致性训练。本地结果使用仓库适配器和本地权重，不等同于论文完整训练复现。</p><a href="https://arxiv.org/html/2607.08772v1" target="_blank" rel="noreferrer">Wat3R 论文 ↗</a></details>
+    </article>
+    <article class="method-card">
+      <div class="method-tag">Water-VGGT</div>
+      <h3>把水体条件加入几何推理</h3>
+      <ul class="method-points">
+        <li><b>基础模型：</b>VGGT</li>
+        <li><b>条件表示：</b>WCV（Water Condition Vector）</li>
+        <li><b>作用位置：</b>条件化特征交互与几何预测模块</li>
+      </ul>
+      <div class="nested-note"><strong>实验变体：</strong>Water-VGGT + WCV 使用本地 <code>wcv.py</code> 先处理图像，再送入 VGGT；与论文中的完整 WCV 框架分开记录，不合并分数。</div>
+      <details><summary>论文与本地实现</summary><p>论文公开描述 WCV 用于表达折射、能见度、散射和光谱衰减等水体条件。本地适配器实例化 VGGT、加载 <code>models/vggt-1b/model.pt</code>；因此网页分数标为本地实现，不能直接宣称为论文完整 Water-VGGT 性能。</p><a href="https://github.com/awhitewhale/watervggt" target="_blank" rel="noreferrer">Water-VGGT 官方仓库 ↗</a></details>
+    </article>
+  </div>
 </section>
 
-<section class="panel wcv-panel" aria-label="WCV 说明"><div class="section-kicker">WCV</div><div class="section-heading"><div><h2>WCV：水体条件表示</h2><p>把水下成像条件整理成可以进入几何网络的条件信号。</p></div></div>
-<div class="wcv-grid"><article><h3>是什么</h3><p>表示折射、能见度、散射、波长衰减等水体条件。</p></article><article><h3>怎么训练</h3><p>合成数据用已知物理参数直接监督；真实数据通过重建一致性 / 几何监督间接优化。</p></article><article><h3>怎么用</h3><p>WCV → condition embedding → FiLM / Attention Bias → Transformer + Heads。</p></article></div>
-<div class="wcv-flow" aria-label="WCV processing flow"><span>RGB</span><b>→</b><span>WCV Estimator</span><b>→</b><span>WCV</span><b>→</b><span>Condition Embedding</span><b>→</b><span>Transformer / Heads</span></div>
+<section class="panel metrics-panel" aria-label="指标与定量结果">
+  <div class="section-heading"><div><h2>指标在测什么</h2></div></div>
+  <div class="metric-meaning"><span><strong>Pose</strong>：相机位姿</span><span><strong>Depth</strong>：逐像素深度</span><span><strong>Point Cloud</strong>：三维几何与完整性</span></div>
+  <div class="results-heading"><div><h3>场景平均结果</h3><p>按原始值和 ↑ / ↓ 方向排名；缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>
+  <div class="ranking-legend" aria-label="排名样式说明"><span class="rank-legend-best">第一名</span><span class="rank-legend-second">第二名</span><span>其他结果</span></div>
+  <div id="metrics-table-wrap" class="table-wrap"></div>
+  <p class="footnote">Depth 使用 geometric GT 的 valid_mask；点云 CD 使用 point.overall。</p>
 </section>
 
-<section class="panel metrics-panel" aria-label="指标与定量结果"><div class="section-kicker">METRICS &amp; RESULTS</div><div class="section-heading"><div><h2>指标在测什么</h2></div></div>
-<div class="metric-meaning"><span><strong>Pose</strong>：相机位姿是否准确</span><span><strong>Depth</strong>：逐像素深度是否准确</span><span><strong>Point Cloud</strong>：最终三维几何是否准确、完整</span></div>
-<div class="results-heading"><div><h3>三组定量结果</h3><p>按未舍入原始值排名；依据每个指标的 ↑ / ↓ 方向判断，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>
-<div class="ranking-legend" aria-label="排名样式说明"><span class="rank-legend-best">第一名</span><span class="rank-legend-second">第二名</span><span>其他结果保持普通样式</span></div>
-<div id="metrics-table-wrap" class="table-wrap"></div><p class="footnote">↑ 越大越好，↓ 越小越好。Pose / Depth / Point Cloud 分开统计；点云 CD 使用 point.overall。</p></section>
-
-<section class="overview panel compact-benchmark" aria-label="Benchmark 信息">
-  <div class="section-kicker">BENCHMARK INFORMATION</div>
-  <div class="section-heading"><div><h2>Water3D / Wat3R real-world benchmark</h2><p>统一使用 common_frames；Pose 采用 AUC@30 / 15 / 5 / 3，Depth 采用 AbsRel、RMSE、SqRel、δ1 / δ2 / δ3，Point Cloud 采用 CD / Chamfer、Acc、Comp、F-score（阈值为 GT 包围盒对角线的 2%）；Depth 逐视图做 scale+shift 对齐并在 geometric GT valid_mask 上计算，点云使用 Sim(3) 对齐，场景内按帧取平均。</p></div><span class="local-badge">LOCAL EVALUATION</span></div>
+<section id="benchmark" class="overview panel compact-benchmark" aria-label="Water3D 评测范围">
+  <div class="section-heading"><div><h2>Water3D 评测范围</h2><p>42 个场景/序列用于当前 benchmark；播放器只列出有网页资源的案例。</p></div></div>
   <div id="benchmark-stats" class="stat-grid"></div>
-  <div id="protocol-note" class="protocol-note"></div>
-  <details class="scene-details"><summary>展开逐 Scene：序列长度与分辨率</summary><div id="scene-table" class="table-wrap"></div></details>
-  <details class="scene-details scene-score-details"><summary>展开逐 Scene：四模型分数与名次</summary><div class="scene-score-toolbar"><span>主指标</span><div id="scene-score-tabs" class="scene-score-tabs" role="tablist"></div></div><div id="scene-score-table" class="table-wrap"></div></details>
+  <details class="scene-details"><summary>评测协议与实现</summary><div id="protocol-note" class="protocol-note"></div></details>
+  <details class="scene-details"><summary>逐场景：序列长度与分辨率</summary><div id="scene-table" class="table-wrap"></div></details>
+  <details class="scene-details scene-score-details"><summary>逐场景：四模型分数与名次</summary><div class="scene-score-toolbar"><span>主指标</span><div id="scene-score-tabs" class="scene-score-tabs" role="tablist"></div></div><div id="scene-score-table" class="table-wrap"></div></details>
 </section>
 
-</main><footer>WaterView · COLMAP 参考深度，无物理绝对尺度</footer></body></html>
+<section class="panel data-resources" aria-label="水下重建数据资源">
+  <div class="section-heading"><div><h2>水下重建数据资源</h2><p>总规模、训练规模和当前可见下载范围分开记录。核查日期：2026-09-20。</p></div></div>
+  <div class="table-wrap">
+    <table class="metric-table resource-table">
+      <thead><tr><th>数据资源</th><th>真实/合成</th><th>总规模</th><th>训练部分规模</th><th>几何标注及来源</th><th>公开范围</th><th>用途</th><th>来源</th></tr></thead>
+      <tbody>
+        <tr><td>Water3D</td><td>真实水下</td><td>42 个场景</td><td>不适用：当前 benchmark 评测集</td><td>深度、位姿、点云来自 COLMAP 摄影测量参考；伪 GT，不是传感器直接真值</td><td>Wat3R benchmark；Hugging Face 可见数据包；许可需按数据页确认</td><td>水下几何评测；当前协议下不能同时训练再做无泄漏测试</td><td><a href="https://arxiv.org/html/2607.08772v1" target="_blank" rel="noreferrer">论文</a> · <a href="https://huggingface.co/datasets/lsxi77777/Water3D" target="_blank" rel="noreferrer">数据</a></td></tr>
+        <tr><td>Wat3R 真实无标注训练数据</td><td>真实水下</td><td>5504 个视频片段（约一万原始视频筛选后）；约 35.9 万张训练图像</td><td>约 35.9 万张（筛选后真实训练数据）</td><td>无人工/传感器几何 GT；可用于自监督或半监督域适应</td><td>官方代码、训练代码、模型和 Water3D 已发布；未找到完整训练视频集公开入口（2026-09-20）</td><td>无标注域适应；另有有标注陆地图像合成水下退化分支，数量未核实</td><td><a href="https://arxiv.org/html/2607.08772v1" target="_blank" rel="noreferrer">论文</a> · <a href="https://github.com/LSXI7/Wat3R" target="_blank" rel="noreferrer">仓库</a></td></tr>
+        <tr><td>Underwater3D-36K</td><td>合成</td><td>1000 个场景 × 36 视角 = 3.6 万张图像</td><td>未明确；官方说明用于训练和评测</td><td>官方描述对应 GT Mesh；本地深度、相机参数由渲染深度与 Mesh 后处理推导，不等同于直接下载字段</td><td>官方仓库提供 OneDrive 入口；本地分享清单 127 个场景、123 个有可用 GLB 并参与评测；不代表完整发布规模</td><td>合成训练与评测；几何预训练/适配</td><td><a href="https://github.com/awhitewhale/watervggt" target="_blank" rel="noreferrer">官方仓库</a></td></tr>
+        <tr><td>FLSea VI</td><td>真实水下视觉惯性</td><td>12 个序列（采用官方数据页口径）</td><td>未明确；自行划分训练/微调</td><td>摄影测量生成并验证几何参考；不是激光或直接深度传感器真值</td><td>数据页/Kaggle 入口；图像数待核实。旧论文 v1 写 8 个 VI + 5 个 stereo，版本口径不同</td><td>训练/微调候选；视觉惯性、深度和导航</td><td><a href="https://www.kaggle.com/datasets/viseaonlab/flsea-vi" target="_blank" rel="noreferrer">数据页</a> · <a href="https://arxiv.org/abs/2302.12772" target="_blank" rel="noreferrer">论文</a></td></tr>
+        <tr><td>SeaThru-NeRF</td><td>真实多视图水下</td><td>4 个发布场景：Curaçao、IUI3 Red Sea、Japanese Gardens、Panama</td><td>未明确；场景级优化</td><td>COLMAP 相机参数及稀疏重建；RGB 渲染评价不等于密集深度 GT</td><td>官方项目页提供数据下载；使用发布版本的 4 场景清单，不与 Sea-thru RGBD 混淆</td><td>场景级 NeRF / 3DGS 与多视图研究</td><td><a href="https://sea-thru-nerf.github.io/" target="_blank" rel="noreferrer">项目页</a> · <a href="https://github.com/deborahLevy130/seathru_NeRF" target="_blank" rel="noreferrer">仓库</a></td></tr>
+        <tr><td>SQUID</td><td>真实水下</td><td>57 对双目图像；4 个地点</td><td>未明确；小规模研究数据</td><td>标定文件与立体重建得到的距离图；不是多视图视频 GT</td><td>官方页面提供四个地点的下载入口；需按论文引用和页面条件使用</td><td>小规模双目、距离/深度和颜色恢复研究</td><td><a href="https://csms.haifa.ac.il/profiles/tTreibitz/datasets/ambient_forwardlooking/" target="_blank" rel="noreferrer">官方数据页</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <details class="scene-details"><summary>数据表核查备注</summary><p>“公开下载”只表示页面存在入口，不自动表示任意用途许可。Water3D 数据页显示 Apache-2.0；其余数据集以各自页面和论文许可/引用要求为准。Underwater3D-36K 的 127/123 是本地分享清单与本地评测统计，不能替代官方 1000 场景总规模。</p></details>
+</section>
+</main>
+</body>
+</html>

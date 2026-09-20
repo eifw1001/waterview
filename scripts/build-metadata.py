@@ -19,12 +19,9 @@ METRICS = json.loads((EVAL / "results/metrics.json").read_text())
 COMMON = json.loads((EVAL / "common_frames.json").read_text())
 SELECTED = json.loads((ROOT / "scripts/selected-scenes.json").read_text())
 GALLERY_PATH = ROOT / "assets/gt_gallery.json"
+MODEL_LABELS = json.loads((ROOT / "scripts/model-labels.json").read_text())
 
-MODELS = ["wat3r", "da3", "watervggt", "watervggt_wcv"]
-MODEL_LABELS = {
-    "wat3r": "Wat3R", "da3": "DA3", "watervggt": "VGGT",
-    "watervggt_wcv": "WCV + VGGT",
-}
+MODELS = list(MODEL_LABELS)
 
 
 def scene_key(scene):

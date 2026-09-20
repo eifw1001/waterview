@@ -4,7 +4,7 @@
   const MODELS = ['wat3r', 'da3', 'watervggt', 'watervggt_wcv'];
   const SCENES = window.WATERVIEW_SCENES;
   const BENCH = window.WATERVIEW_BENCHMARK || {metrics: {}, sceneStats: {}, gallery: [], rankings: {}};
-  const MODEL_LABELS = BENCH.models || {wat3r: 'Wat3R', da3: 'DA3', watervggt: 'VGGT', watervggt_wcv: 'WCV + VGGT'};
+  const MODEL_LABELS = window.WATERVIEW_MODEL_LABELS || BENCH.models || {wat3r: 'Wat3R', da3: 'DA3', watervggt: 'Water-VGGT', watervggt_wcv: 'Water-VGGT + WCV'};
   const DEPTH = window.WATERVIEW_DEPTH || [];
   const panels = {};
   const cache = new Map();
@@ -20,6 +20,8 @@
   let lastAdvance = 0, buffering = false, playbackEpoch = 0;
   let lastTime = performance.now();
   let prefetchAbort = null, prefetchScene = null;
+  let rankingContext = null;
+  let aggregateDisplayedKey = null;
   const inflight = new Map();
 
   function fatal(error) {
@@ -42,14 +44,15 @@
   function renderDepthEvidence(currentFrame) {
     if (!$('depth-sync-note')) return;
     const key = scene && (scene.sid || scene.id);
-    const item = DEPTH.find(x => x.scene === key && x.frame === currentFrame);
+    const sourceFrame = currentFrame + (scene?.sourceFrameOffset || 0);
+    const item = DEPTH.find(x => x.scene === key && x.frame === sourceFrame);
     const ids = ['depth-rgb','depth-gt','depth-wat3r','depth-da3','depth-watervggt','depth-watervggt_wcv'];
     if (!item) {
       ids.forEach(id => { const img=$(id); if(img){img.removeAttribute('src'); img.hidden=true;} });
       $('depth-unavailable').hidden = false;
       const sceneItems = DEPTH.filter(x => x.scene === key);
       $('depth-sync-note').textContent = sceneItems.length
-        ? '当前帧没有导出的 Depth；本场景已导出代表帧：' + sceneItems.map(x => (x.frame + 1)).join('、') + '。拖到对应帧即可联动查看。'
+        ? '当前展示帧没有导出的 Depth；本场景已导出参考帧：' + sceneItems.map(x => (x.frame - (scene?.sourceFrameOffset || 0) + 1)).join('、') + '。'
         : '当前场景暂未导出代表 Depth；点云仍可正常逐帧播放。';
       return;
     }
@@ -60,7 +63,7 @@
       'depth-watervggt': item.predictions.watervggt, 'depth-watervggt_wcv': item.predictions.watervggt_wcv
     };
     Object.entries(sources).forEach(([id,src]) => { const img=$(id); img.hidden=false; img.src=src; });
-    $('depth-sync-note').textContent = item.scene + ' · frame ' + (item.frame + 1) + ' · ' + item.instance + ' · GT 有效覆盖 ' + (item.validCoverage*100).toFixed(1) + '%。RGB、GT 和四模型 Depth 与当前点云帧匹配。';
+    $('depth-sync-note').textContent = item.scene + ' · 展示帧 ' + (currentFrame + 1) + ' / 原评测帧 ' + (item.frame + 1) + ' · ' + item.instance + ' · GT 有效覆盖 ' + (item.validCoverage*100).toFixed(1) + '%。';
   }
   function renderSceneGt(current) {
     const key = current.sid || current.id;
@@ -107,7 +110,7 @@
         strip.innerHTML = '<span>无 GT 定量分数</span>';
         return;
       }
-      strip.innerHTML = miniSpecs.map((spec,i) => {
+      strip.innerHTML = '<span class="metric-scope">场景平均</span>' + miniSpecs.map((spec,i) => {
         const v = entry?.[spec.path[0]]?.[spec.path[1]];
         const r = miniRanks[i].indexOf(v);
         const cls = r===0 ? 'mini-best' : r===1 ? 'mini-second' : '';
@@ -122,19 +125,22 @@
       const unique = [...new Set(ranked.map(x => x.entry[caseTask][primary[0]]))];
       const distinctRank = unique.indexOf(value);
       const cls = distinctRank === 0 ? 'strong' : distinctRank === 1 ? 'under' : '';
-      const detail = spec.fields.slice(1).map(([field, label, dir]) => finite(entry[caseTask]?.[field]) ? `${label}${dir} ${entry[caseTask][field].toFixed(4)}` : `${label}${dir} —`).join(' · ');
-      box.innerHTML = `<span class="score-label">${primary[1]}${primary[2]}</span><span class="${cls}">${finite(value) ? value.toFixed(6) : '—'}</span><span class="score-scope">场景平均 · ${detail}</span>`;
+      box.innerHTML = `<span class="score-label">${caseTask === 'depth' ? 'Depth' : 'Point Cloud'} 名次</span><span class="${cls}">${rank >= 0 ? rank + 1 : '—'} / ${ranked.length}</span><span class="score-scope">按 ${primary[1]}${primary[2]}，精确值见首页逐场景表</span>`;
     });
     MODELS.forEach(model => {
       const point = metricEntry(model)?.point?.overall;
       const chip = $('cham_' + model);
-      chip.textContent = finite(point) ? 'CD ' + point.toFixed(6) : '';
-      chip.classList.toggle('focus', model === scene.focus);
+      chip.textContent = '';
+      chip.classList.toggle('focus', false);
     });
     const rank = !isWild ? caseRank(focusModel, caseTask, scene) : null;
-    const quality = rank ? `${rank.rank <= 5 ? '较好/较差榜候选' : '完整评测排序'} · ${rank.metric} ${rank.value.toFixed(6)} · ${rank.rank}/${rank.total}` : '定性案例；没有 GT 准确度排序';
+    const rankingScope = rankingContext
+      ? `全量 ${rankingContext.total} 个场景按 ${rankingContext.metric} ${rankingContext.direction} 排序；当前已导出 ${rankingContext.available} 个，缺失 ${rankingContext.missing.length} 个`
+      : (rank ? `全量 ${rank.total} 个场景 · ${rank.metric} ${rank.value.toFixed(6)} · 实际名次 ${rank.rank}/${rank.total}` : '定性案例；没有 GT 准确度排序');
+    const currentRank = rank ? `当前场景实际名次 ${rank.rank}/${rank.total} · ${rank.metric} ${rank.value.toFixed(6)}` : '';
+    const missing = rankingContext?.missing.length ? `<br>未导出：${rankingContext.missing.map(esc).join('、')}` : '';
     const stats = BENCH.sceneStats[key];
-    $('case-context').innerHTML = `<strong>${esc(isWild ? 'Wild / UVEB' : 'Water3D benchmark')} · 关注 ${esc(MODEL_LABELS[focusModel])} · ${esc(caseTask === 'depth' ? 'Depth' : 'Point Cloud')}</strong><br>${esc(quality)}。${esc(scene.focusNote || scene.description || '')}${stats ? ` <span>原始 ${stats.originalFrames || '—'} 帧 · 评测 ${stats.evaluatedFrames} 帧 · 播放器 ${scene.nf} 帧。</span>` : ''}`;
+    $('case-context').innerHTML = `<strong>${esc(isWild ? 'Wild / UVEB' : 'Water3D benchmark')} · ${esc(MODEL_LABELS[focusModel])} · ${esc(caseTask === 'depth' ? 'Depth · AbsRel↓' : 'Point Cloud · CD↓')}</strong><br>${esc(rankingScope)}${currentRank ? `<br>${esc(currentRank)}` : ''}${missing}${scene.focusNote || scene.description ? `<br>${esc(scene.focusNote || scene.description)}` : ''}${stats ? ` <span>原始 ${stats.originalFrames || '—'} 帧 · 评测 ${stats.evaluatedFrames} 帧 · 播放器 ${scene.nf} 帧。</span>` : ''}`;
   }
   function setLayout(next) {
     layout = next; $('layout').value = next; document.querySelector('.pgrid').className = 'pgrid layout-' + next;
@@ -146,15 +152,27 @@
   }
   function showRankedCases() {
     const group = BENCH.rankings?.[focusModel]?.[caseTask];
-    const rows = group?.available || [];
+    const rows = group?.all || [];
     const chosen = caseQuality === 'good' ? rows.slice(0, 5) : rows.slice(-5).reverse();
-    const list = chosen.map(row => SCENES.find(item => item.sid === row.scene || item.id === row.scene)).filter(Boolean);
-    if (!list.length) return;
+    const list = chosen.map(row => SCENES.find(item => item.id === row.scene) || SCENES.find(item => item.sid === row.scene)).filter(Boolean);
+    rankingContext = {
+      metric: group?.metric || (caseTask === 'depth' ? 'abs_rel' : 'overall'),
+      direction: group?.direction || '↓',
+      total: rows.length,
+      available: list.length,
+      missing: chosen.filter(row => !SCENES.some(item => item.id === row.scene || item.sid === row.scene)).map(row => row.scene)
+    };
     $('sel').replaceChildren(...list.map(item => { const option = document.createElement('option'); option.value = item.id; option.textContent = `${item.title} · ${item.sid || item.id}`; return option; }));
     document.querySelectorAll('.tab').forEach(tab => { tab.classList.remove('active'); tab.setAttribute('aria-pressed', 'false'); });
-    loadScene(list[0]);
+    if (list.length) loadScene(list[0]);
+    else $('case-context').innerHTML = `<strong>${esc(MODEL_LABELS[focusModel])} · ${esc(caseTask === 'depth' ? 'Depth · AbsRel↓' : 'Point Cloud · CD↓')}</strong><br>全量 ${rows.length} 个场景已排序，但当前没有对应的可视化资源。`;
   }
   function setupPageMeta() {
+    const groupLabels = {uveb: '定性', water3d: '代表', wat3r_worst_abs: '预选', watervggt_worst_rel: '预选'};
+    document.querySelectorAll('[data-count-group]').forEach(node => {
+      const group = node.dataset.countGroup;
+      node.textContent = `${groupLabels[group] || '案例'} · ${SCENES.filter(item => item.group === group).length} 个`;
+    });
     $('layout').onchange = () => setLayout($('layout').value);
     $('focus-method').onchange = () => { focusModel = $('focus-method').value; renderSceneEvidence(); setLayout(layout); if (scene && scene.group !== 'uveb') showRankedCases(); };
     $('case-task').onchange = () => { caseTask = $('case-task').value; renderSceneEvidence(); if (scene && scene.group !== 'uveb') showRankedCases(); };
@@ -403,7 +421,7 @@
         return getFrame(meta.url, meta.count, signal);
       }));
     }
-    function aggregateKey(current) { return `${current.id}:${hdEnabled ? 'hd' : 'preview'}`; }
+    function aggregateKey(current) { return `${current.sid || current.id}:${hdEnabled ? 'hd' : 'preview'}`; }
     async function dataForAllFrames(current, signal, onProgress = null) {
       const key = aggregateKey(current);
       const cached = aggregateCache.get(key);
@@ -490,10 +508,12 @@
       $('play').disabled = false;
       $('retry').hidden = true;
       $('status').textContent = '正在加载当前帧…';
+      const selectedAggregateKey = allFramesEnabled ? aggregateKey(selected) : null;
+      const cachedAggregate = allFramesEnabled ? aggregateCache.get(selectedAggregateKey) : null;
       const pointData = allFramesEnabled
-        ? dataForAllFrames(selected, signal, (done, total) => {
+        ? (cachedAggregate || dataForAllFrames(selected, signal, (done, total) => {
             if (id === requestId) $('status').textContent = `正在合并全部帧 ${done} / ${total}…`;
-          })
+          }))
         : dataFor(selected, requestedFrame, signal);
       const results = await Promise.allSettled([pointData, imageFor(selected, requestedFrame)]);
       if (id !== requestId) return;
@@ -517,15 +537,19 @@
           panels[m].renderer.domElement.style.aspectRatio = image.naturalWidth + '/' + image.naturalHeight;
         });
         resize();
-        MODELS.forEach((m, i) => {
-          panels[m].data = allFramesEnabled ? data.data[i] : data[i];
-          panels[m].count = allFramesEnabled ? data.counts[i] : requestedMeta[i].count;
-          drawFrame(m);
-          panels[m].renderer.domElement.dataset.frame = String(frame);
-        });
+        const aggregateChanged = allFramesEnabled && aggregateDisplayedKey !== selectedAggregateKey;
+        if (!allFramesEnabled || aggregateChanged) {
+          MODELS.forEach((m, i) => {
+            panels[m].data = allFramesEnabled ? data.data[i] : data[i];
+            panels[m].count = allFramesEnabled ? data.counts[i] : requestedMeta[i].count;
+            drawFrame(m);
+          });
+          if (allFramesEnabled) aggregateDisplayedKey = selectedAggregateKey;
+        }
+        MODELS.forEach(m => { panels[m].renderer.domElement.dataset.frame = String(frame); });
         $('play').disabled = false; $('status').textContent = allFramesEnabled ? '四模型全部帧已合并' : '四模型当前帧已就绪';
         renderDepthEvidence(frame);
-        if (allFramesEnabled) fitView();
+        if (allFramesEnabled && aggregateChanged) fitView();
         else if (snap) applyCams(requestedFrame);
         else if (needsAutoFit) { fitView(); needsAutoFit = false; }
         const now = performance.now(), interval = 1000 / +$('fps').value;
@@ -535,7 +559,7 @@
       }
     }
     function loadScene(selected, initialFrame = 0) {
-      stop(); cancelPrefetch(); scene = selected; frame = 0; pendingFrame = 0;
+      stop(); cancelPrefetch(); scene = selected; frame = 0; pendingFrame = 0; aggregateDisplayedKey = null;
       MODELS.forEach(model => {
         panels[model].controls.minDistance = scene.id === 'creature_03' ? 0.05 : 0.6;
       });
@@ -553,11 +577,7 @@
       $('description').textContent = scene.description;
       $('badge').textContent = scene.badge || '';
       $('scene-id').textContent = scene.sid || scene.id;
-      MODELS.forEach(m => {
-        const chip = $('cham_' + m), score = scene.chamfer && scene.chamfer[m];
-        chip.textContent = score != null ? score.toFixed(2) : '';
-        chip.classList.toggle('focus', score != null && scene.focus === m);
-      });
+      MODELS.forEach(m => { const chip = $('cham_' + m); chip.textContent = ''; chip.classList.remove('focus'); });
       $('tags').textContent = scene.tags;
       renderSceneEvidence();
       renderSceneGt(scene);
@@ -585,6 +605,7 @@
       resetView(); requestFrame(initialFrame);
     }
     function chooseGroup(group, wanted, initialFrame = 0) {
+      rankingContext = null;
       const list = SCENES.filter(s => s.group === group);
       $('sel').replaceChildren();
       list.forEach(s => {
@@ -605,10 +626,12 @@
       const hasHd = scene && MODELS.every(m => scene.bins[m]?.hdPath && scene.bins[m]?.hdCounts);
       hdEnabled = !!$('hd').checked && hasHd;
       if (!hasHd) { $('hd').checked = false; $('hd-note').textContent = '当前案例没有高密度导出，保持预览点云。'; return; }
+      aggregateDisplayedKey = null;
       stop(); cancelPrefetch(); requestFrame(frame);
     };
     $('all-frames').onchange = () => {
       allFramesEnabled = $('all-frames').checked;
+      aggregateDisplayedKey = null;
       stop(); cancelPrefetch(); requestFrame(frame);
     };
     $('psz').oninput = () => {

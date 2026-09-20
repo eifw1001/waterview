@@ -1,6 +1,7 @@
 'use strict';
 (()=> {
   const data = window.WATERVIEW_DEPTH || [];
+  const labels = window.WATERVIEW_MODEL_LABELS || {};
   const byScene = new Map(data.map(x => [x.scene, x]));
   const sel = document.getElementById('sel');
   const empty = document.getElementById('inline-depth-empty');
@@ -27,10 +28,10 @@
     }
     empty.hidden = true;
     content.hidden = false;
-    note.textContent = key + ' · 代表帧 ' + item.instance + ' · GT valid coverage ' + (item.validCoverage * 100).toFixed(1) + '%。以下图像使用同一代表帧。';
+    note.textContent = key + ' · 参考帧 ' + item.instance + ' · GT 有效覆盖 ' + (item.validCoverage * 100).toFixed(1) + '%。以下图像使用同一参考帧。';
     setImg('inline-rgb', item.rgb, key + ' RGB');
     setImg('inline-gt', item.gt, key + ' filtered GT depth');
-    ['wat3r','da3','watervggt','watervggt_wcv'].forEach(m => setImg('inline-'+m, item.predictions?.[m], key + ' ' + m + ' depth'));
+    ['wat3r','da3','watervggt','watervggt_wcv'].forEach(m => setImg('inline-'+m, item.predictions?.[m], key + ' ' + (labels[m] || m) + ' depth'));
   }
   sel.addEventListener('change', () => setTimeout(render, 0));
   const sceneId = document.getElementById('scene-id');

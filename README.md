@@ -2,7 +2,7 @@
 
 在线预览：https://eifw1001.github.io/waterview/
 
-展示 Wat3R、DA3、VGGT、WCV + VGGT 的逐帧预测点云，并把
+展示 Wat3R、DA3、Water-VGGT、Water-VGGT + WCV 的逐帧预测点云，并把
 `metrics.json` 的场景平均分数、排名、过滤后的 geometric GT 和播放器放在同一页。
 各模型通过 Umeyama Sim(3) 对齐到 Wat3R 参考系，并共用中心/半径归一化；
 Wild 没有 GT 准确度分数，Water3D 分数按固定本地协议展示。
@@ -12,7 +12,7 @@ Wild 没有 GT 准确度分数，Water3D 分数按固定本地协议展示。
 - Pose / Depth / Point Cloud 分开的定量表格，按未舍入值和 ↑ / ↓ 自动排名；
 - 10 张 geometric GT + valid_mask 画廊，明确原图、GT、输入/评测尺寸与帧数口径；
 - 当前场景四个模型的场景平均分数、跨模型名次、Depth / Point Cloud 切换；
-- 四模型、Wat3R/VGGT 两模型大画面、单模型放大布局；
+- 四模型、Wat3R/Water-VGGT 两模型大画面、单模型放大布局；
 - `creature_15` 鲨鱼、`creature_03` 背景细杆、GT 缺失候选快捷入口；
 - 所有已展示场景均可切换已有真实高密度导出：Wild 约 20,000 点/帧，Water3D 约 12,000 点/帧；仅勾选高清模式时按当前帧请求。
 
@@ -38,16 +38,16 @@ Wild 没有 GT 准确度分数，Water3D 分数按固定本地协议展示。
 | Wat3R 相对最差 | video_7762649 | 6.37 vs 1.38（4.6×） |
 | Wat3R 相对最差 | video_31650576 | 远场漂移 · 0.68 vs 0.24（2.8×） |
 | Wat3R 相对最差 | video_11138687 | 结构发散 · 0.62 vs 0.23（2.7×） |
-| VGGT 绝对最差 | video_33847329 | 整体糊化 · 5.44（四模型均 >5） |
-| VGGT 绝对最差 | video_7762649 | 2.64（最优 da3 1.38） |
-| VGGT 绝对最差 | video_11273415 | 2.55（最优 wat3r 1.62） |
-| VGGT 绝对最差 | video_34172248 | 层间错位 · 2.52（最优 da3 0.48） |
-| VGGT 绝对最差 | video_31550645 | 雪片噪声 · 2.34（最优 wat3r 1.14） |
-| VGGT 相对最差 | video_31824746 | 结构坍缩 · 2.03 vs 0.30（6.8×） |
-| VGGT 相对最差 | video_34172248 | 2.52 vs 0.48（5.2×） |
-| VGGT 相对最差 | video_34808164 | 碎片条带 · 0.69 vs 0.17（4.1×） |
-| VGGT 相对最差 | video_34675110 | 断裂散落 · 1.43 vs 0.42（3.4×） |
-| VGGT 相对最差 | cv_1326 | 远场毛刺 · 0.44 vs 0.14（3.2×） |
+| Water-VGGT 绝对最差 | video_33847329 | 整体糊化 · 5.44（四模型均 >5） |
+| Water-VGGT 绝对最差 | video_7762649 | 2.64（最优 da3 1.38） |
+| Water-VGGT 绝对最差 | video_11273415 | 2.55（最优 wat3r 1.62） |
+| Water-VGGT 绝对最差 | video_34172248 | 层间错位 · 2.52（最优 da3 0.48） |
+| Water-VGGT 绝对最差 | video_31550645 | 雪片噪声 · 2.34（最优 wat3r 1.14） |
+| Water-VGGT 相对最差 | video_31824746 | 结构坍缩 · 2.03 vs 0.30（6.8×） |
+| Water-VGGT 相对最差 | video_34172248 | 2.52 vs 0.48（5.2×） |
+| Water-VGGT 相对最差 | video_34808164 | 碎片条带 · 0.69 vs 0.17（4.1×） |
+| Water-VGGT 相对最差 | video_34675110 | 断裂散落 · 1.43 vs 0.42（3.4×） |
+| Water-VGGT 相对最差 | cv_1326 | 远场毛刺 · 0.44 vs 0.14（3.2×） |
 
 Wild 从原页面的 12 个场景中，按首帧、中间帧、末帧的四模型几何差异筛选前 5 个，
 再检查输入画面。差异分数：每模型每帧按索引步长 8 采样，在已有共同坐标系下，
@@ -64,7 +64,7 @@ Water3D 按输入画面的色偏、能见度和纹理覆盖选取三个案例。
 - **相对最差**：该模型 ÷ 同场最优模型 倍数最大的 5 个场景——反映该模型独有的失效，
   如 video_11634794 的 Wat3R 落后 10.0 倍。
 
-同一场景可出现在多个分组（如 video_7762649 同时在 Wat3R 绝对/相对与 VGGT 绝对三组）；
+同一场景可出现在多个分组（如 video_7762649 同时在 Wat3R 绝对/相对与 Water-VGGT 绝对三组）；
 条目 id 加后缀去重，`sid` 保留真实场景名，帧数据共用同一目录。
 页面卡片标题栏的数字即各模型在本场的 Chamfer，越小越好，当前关注的模型高亮。
 U36K 暂不在页面展示，原始文件保留。
@@ -106,7 +106,7 @@ python3 scripts/build-frames.py
 python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
-在浏览器打开 http://127.0.0.1:8765/ 。静态页面无需打包。
+在浏览器打开 http://127.0.0.1:8765/index.html 。静态页面无需打包。
 更新 CSS、JS 或场景清单后，同时更新 `index.html` 中资源版本参数。
 
 `build-metadata.py` 只读取现有 `metrics.json` / `common_frames.json`，不会重跑模型。
@@ -119,10 +119,11 @@ python3 -m http.server 8765 --bind 127.0.0.1
 快速拖动、缓冲后播放节奏和手机布局；截图写入 `/tmp/waterview-playback-mobile.png`。
 视频数据来自 UVEB（MIT）。
 
-## 2026-09-20：点云首页与独立报告页
+## 2026-09-20：汇报首页与点云播放器
 
-- `index.html` 恢复四模型横排点云首页，保留两模型/单模型布局、分数和重点案例入口。
-- `benchmark.html`：总体指标与 42 个场景的帧数/分辨率明细。
+- `index.html`：方法、场景平均指标、42 个场景明细和水下重建数据资源表。
+- `viewer.html`：四模型逐帧点云、深度参考、Bottom-5 案例和两模型/单模型布局。
+- `benchmark.html`：重定向到首页的定量结果区，不再维护第二套页面。
 - `gt.html`：10 个过滤后 GT 代表帧，图片可放大。
 - `depth.html`：上述 10 个代表帧的 RGB、geometric GT 和四模型深度，附场景平均分数。
   这是代表帧浏览页，尚非完整逐帧深度播放器。运行 `python3 scripts/build-depth-page.py`

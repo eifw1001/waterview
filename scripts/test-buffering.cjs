@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
   const ready=()=>page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('四模型当前帧已就绪'));
   let transfers=0;
   await page.route('**/clouds_frames/**',async route=>{transfers++;await new Promise(r=>setTimeout(r,160));await route.continue().catch(()=>{});});
-  await page.goto('http://127.0.0.1:8765/');await ready();
+  await page.goto('http://127.0.0.1:8765/viewer.html');await ready();
   // Home must not request the report gallery or initialize it in hidden panels.
   assert.equal(await page.locator('#gt-gallery').count(),0);
   await page.locator('#fps').fill('10');await page.locator('#fps').dispatchEvent('input');

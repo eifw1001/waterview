@@ -1,0 +1,6 @@
+window.WATERVIEW_MODEL_LABELS = {
+  wat3r: 'Wat3R',
+  da3: 'DA3',
+  watervggt: 'Water-VGGT',
+  watervggt_wcv: 'Water-VGGT + WCV'
+};

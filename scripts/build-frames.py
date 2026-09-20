@@ -1,18 +1,40 @@
 """Split selected point clouds losslessly so first paint only needs one frame."""
 import hashlib
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 scenes = json.loads((ROOT / 'scripts/selected-scenes.json').read_text())
+MODEL_LABELS = json.loads((ROOT / 'scripts/model-labels.json').read_text())
 HD_ROOT = ROOT.parent / 'experiments' / 'dynamic_underwater' / 'website' / 'clouds_anim'
 HD_INDEX = HD_ROOT / 'index.json'
 hd_index = json.loads(HD_INDEX.read_text()) if HD_INDEX.exists() else {}
 WATER3D_INDEX = HD_ROOT / 'index_multi.json'
 water3d_index = json.loads(WATER3D_INDEX.read_text()).get('water3d', {}) if WATER3D_INDEX.exists() else {}
 manifest = []
+
+
+def display_text(value):
+    """Normalize legacy method labels in user-facing scene metadata only."""
+    if not isinstance(value, str):
+        return value
+    value = re.sub(r'Water-(?:Water-)+VGGT', MODEL_LABELS['watervggt'], value)
+    value = value.replace('WCV + VGGT', MODEL_LABELS['watervggt_wcv'])
+    value = value.replace('V-GGT', MODEL_LABELS['watervggt'])
+    return re.sub(r'(?<!Water-)VGGT', MODEL_LABELS['watervggt'], value)
+
+
+def normalize_display_fields(entry):
+    for key in ('title', 'description', 'badge', 'tags', 'focusNote'):
+        if key in entry:
+            entry[key] = display_text(entry[key])
+    return entry
+
+
 for scene in scenes:
     entry = {k: v for k, v in scene.items() if k != 'bins'}
+    normalize_display_fields(entry)
     entry['bins'] = {}
     for model, meta in scene['bins'].items():
         data = (ROOT / meta['url']).read_bytes()
