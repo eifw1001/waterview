@@ -132,12 +132,23 @@
       caseQuality = $('case-quality').value;
       if (scene.group !== 'uveb') showRankedCases();
     };
-    document.querySelectorAll('.quick').forEach(button => button.onclick = () => {
+    document.querySelectorAll('.quick[data-quick]').forEach(button => button.onclick = () => {
       const wanted = button.dataset.quick === 'gt_missing' ? 'video_7762649' : button.dataset.quick;
       const match = SCENES.find(s => s.id === wanted || s.sid === wanted);
       if (!match) return;
       const focusFrame = match.focusFrame != null ? match.focusFrame : (button.dataset.quick === 'creature_15' ? 17 : button.dataset.quick === 'gt_missing' ? 22 - (match.sourceFrameOffset || 0) : 18);
       chooseGroup(match.group, match.id, focusFrame);
+      document.querySelector('.selection').scrollIntoView({behavior: 'smooth', block: 'start'});
+    });
+    document.querySelectorAll('.bottom-five').forEach(button => button.onclick = () => {
+      focusModel = button.dataset.bottomModel;
+      caseTask = 'depth';
+      caseQuality = 'bad';
+      $('focus-method').value = focusModel;
+      $('case-task').value = 'depth';
+      $('case-quality').value = 'bad';
+      showRankedCases();
+      renderSceneEvidence();
       document.querySelector('.selection').scrollIntoView({behavior: 'smooth', block: 'start'});
     });
   }
