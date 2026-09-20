@@ -1,9 +1,20 @@
-# WaterView · 四模型水下点云对比
+# WaterView · 水下重建证据浏览器
 
 在线预览：https://eifw1001.github.io/waterview/
 
-展示 Wat3R、DA3、Water-VGGT、Water-VGGT+WCV 的逐帧预测点云。
-各模型通过 Umeyama Sim(3) 对齐到 Wat3R 参考系，并共用中心/半径归一化；无 GT 点云。
+展示 Wat3R、DA3、Water-VGGT、Water-VGGT+WCV 的逐帧预测点云，并把
+`metrics.json` 的场景平均分数、排名、过滤后的 geometric GT 和播放器放在同一页。
+各模型通过 Umeyama Sim(3) 对齐到 Wat3R 参考系，并共用中心/半径归一化；
+Wild 没有 GT 准确度分数，Water3D 分数按固定本地协议展示。
+
+本阶段新增：
+
+- Pose / Depth / Point Cloud 分开的定量表格，按未舍入值和 ↑ / ↓ 自动排名；
+- 10 张 geometric GT + valid_mask 画廊，明确原图、GT、输入/评测尺寸与帧数口径；
+- 当前场景四个模型的场景平均分数、跨模型名次、Depth / Point Cloud 切换；
+- 四模型、Wat3R/Water-VGGT 两模型大画面、单模型放大布局；
+- `creature_15` 鲨鱼、`creature_03` 背景细杆、GT 缺失候选快捷入口；
+- `creature_03` / `creature_15` 已接入每帧 20,000 点的真实高清导出，其余场景明确回退到 8,000 点预览。
 
 ## 场景分组
 
@@ -86,15 +97,21 @@ video_7762649 的源视频是剪辑合辑，开头有一段泳池镜头与主体
 `../experiments/dynamic_underwater/website/clouds_anim_gh/`（由
 `experiments/dynamic_underwater/make_worst_groups.py` 按两个口径从 metrics.json
 选出并抽稀生成）。
-运行以下命令无损生成 `clouds_frames/` 和 `assets/scenes.js`：
+运行以下命令生成/更新逐帧资源、GT 画廊和 benchmark manifest：
 
 ```sh
+python3 scripts/build-gt-gallery.py
+python3 scripts/build-metadata.py
 python3 scripts/build-frames.py
 python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
 在浏览器打开 http://127.0.0.1:8765/ 。静态页面无需打包。
 更新 CSS、JS 或场景清单后，同时更新 `index.html` 中资源版本参数。
+
+`build-metadata.py` 只读取现有 `metrics.json` / `common_frames.json`，不会重跑模型。
+`build-frames.py` 只对已有导出做切帧；高清源来自已有的
+`experiments/dynamic_underwater/website/clouds_anim`，当前仅对两个重点案例按需复制。
 
 浏览器验收：安装 Playwright 及其 Chromium，在预览服务启动后运行
 `node scripts/test-viewer.cjs`（或通过 `NODE_PATH` 指向外部 Playwright 安装）。

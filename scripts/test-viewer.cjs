@@ -37,8 +37,15 @@ const assert = require('node:assert/strict');
     };
 
     await page.goto('http://127.0.0.1:8765/'); await ready(); await assertAligned();
-    assert.equal(await page.locator('#sel option').count(), 5);
+    assert.equal(await page.locator('#sel option').count(), 6);
     assert.equal(await page.locator('#align').getAttribute('aria-pressed'), 'true', 'Wild gets camera poses');
+    assert.equal(await page.locator('#metrics-table-wrap .metric-table tbody tr').count(), 4);
+    assert.equal(await page.locator('#gt-gallery .gallery-card').count(), 10);
+    assert.match(await page.locator('#score_wat3r').textContent(), /无 GT|AbsRel/);
+    await page.selectOption('#layout', 'two');
+    assert(await page.locator('#card_wat3r').isVisible() && await page.locator('#card_watervggt').isVisible());
+    assert(!(await page.locator('#card_da3').isVisible()), 'two-model layout focuses Wat3R and Water-VGGT');
+    await page.selectOption('#layout', 'four');
     for (const [group, id] of [['water3d', 'cv_1000'], ['wat3r_worst_abs', 'video_7762649']]) {
       await open(group, id);
     }
@@ -49,6 +56,10 @@ const assert = require('node:assert/strict');
     });
     assert.notDeepEqual(shifted[0], shifted[2]);
     await open('uveb', 'creature_15');
+    await page.locator('.quick[data-quick="creature_03"]').click();
+    await ready(); await assertAligned();
+    assert.equal(await page.locator('#sel').inputValue(), 'creature_03');
+    assert.equal(await page.locator('#hd').isEnabled(), true, 'focus cases expose real HD exports');
 
     // A slow model request must never advance only the image or some canvases.
     await page.route('**/clouds_frames/**/020.bin', async route => {

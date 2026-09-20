@@ -3,12 +3,15 @@
   const $ = id => document.getElementById(id);
   const MODELS = ['wat3r', 'da3', 'watervggt', 'watervggt_wcv'];
   const SCENES = window.WATERVIEW_SCENES;
+  const BENCH = window.WATERVIEW_BENCHMARK || {metrics: {}, sceneStats: {}, gallery: [], rankings: {}};
+  const MODEL_LABELS = BENCH.models || {wat3r: 'Wat3R', da3: 'DA3', watervggt: 'Water-VGGT', watervggt_wcv: 'Water-VGGT+WCV'};
   const panels = {};
   const cache = new Map();
   const CACHE_FRAMES = 288; // Two full 32-frame scenes = 256 model-frames (~32 MiB).
   const imageCache = new Map();
   const IMAGE_CACHE_FRAMES = 48;
   let scene, frame = 0, pendingFrame = 0, confidence = 100, playing = false, loading = false;
+  let hdEnabled = false, layout = 'four', focusModel = 'wat3r', caseTask = 'depth', caseQuality = 'good';
   let snap = false; // 吸附到当前帧相机位姿（有 cams 数据的场景默认开启）
   let requestId = 0, controller, timer, dirty = true, syncing = false;
   let lastAdvance = 0;
@@ -20,6 +23,129 @@
     $('status').textContent = '无法初始化点云';
     MODELS.forEach(m => { $('ld_' + m).textContent = error.message; });
     console.error(error);
+  }
+  const esc = value => String(value).replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
+  const metricSpec = {
+    pose: {title: 'Pose', fields: [['auc30', 'AUC@30', '↑', true], ['auc15', 'AUC@15', '↑', true], ['auc05', 'AUC@5', '↑', true]]},
+    depth: {title: 'Depth', fields: [['abs_rel', 'AbsRel', '↓', false], ['rmse', 'RMSE', '↓', false], ['delta1', 'δ1', '↑', true]]},
+    point: {title: 'Point Cloud', fields: [['overall', 'CD / Chamfer', '↓', false], ['acc', 'Acc', '↓', false], ['comp', 'Comp', '↓', false], ['fscore', 'F-score', '↑', true]]}
+  };
+  function metricEntry(model, current = scene) {
+    const key = current && (current.sid || current.id);
+    return BENCH.metrics?.[model]?.[key] || null;
+  }
+  function finite(value) { return typeof value === 'number' && Number.isFinite(value); }
+  function renderBenchmark() {
+    const stats = Object.values(BENCH.sceneStats || {});
+    const evaluated = stats.map(x => x.evaluatedFrames).filter(Number.isFinite);
+    const original = stats.map(x => x.originalFrames).filter(Number.isFinite);
+    const exported = (BENCH.resourceScenes || []).length;
+    const range = values => values.length ? Math.min(...values) + '–' + Math.max(...values) : '—';
+    $('benchmark-stats').innerHTML = [
+      ['42', 'Water3D scenes / sequences'],
+      [exported, '网页可交互资源（含 Wild）'],
+      [range(original), '原始帧数 / scene'],
+      [range(evaluated), '实际评测帧数 / scene'],
+      ['518 px', '评测 GT 短边 / 模型输入基准']
+    ].map(([value, label]) => `<div class="stat"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`).join('');
+    $('protocol-note').textContent = BENCH.protocol?.summary + ' ' + BENCH.protocol?.scope + ' ' + BENCH.protocol?.input;
+  }
+  function renderMetricTable(kind = 'depth') {
+    const spec = metricSpec[kind];
+    const rows = MODELS.map(model => {
+      const entries = Object.values(BENCH.metrics?.[model] || {});
+      return {model, values: spec.fields.map(([key]) => {
+        const values = entries.map(entry => entry[kind]?.[key]).filter(finite);
+        return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+      })};
+    });
+    $('metric-tabs').innerHTML = Object.entries(metricSpec).map(([key, value]) => `<button class="metric-tab${key === kind ? ' active' : ''}" data-metric="${key}" role="tab" aria-selected="${key === kind}">${value.title}</button>`).join('');
+    const ranks = spec.fields.map(([, , , higher], index) => rows.map(row => ({row, value: row.values[index]})).filter(x => finite(x.value)).sort((a, b) => higher ? b.value - a.value : a.value - b.value).map(x => x.row.model));
+    $('metrics-table-wrap').innerHTML = `<table class="metric-table"><thead><tr><th>model · ${spec.title}</th>${spec.fields.map(([, label, dir]) => `<th>${label} ${dir}<br><small>scene mean</small></th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr><td>${esc(MODEL_LABELS[row.model])}</td>${row.values.map((value, index) => { const rank = ranks[index].indexOf(row.model); return `<td class="${rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : ''}">${finite(value) ? value.toFixed(4) : '—'}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+    document.querySelectorAll('.metric-tab').forEach(tab => tab.onclick = () => renderMetricTable(tab.dataset.metric));
+  }
+  function renderGallery() {
+    const items = BENCH.gallery || [];
+    $('gallery-count').textContent = items.length + ' representative frames';
+    $('gt-gallery').innerHTML = items.map(item => `<article class="gallery-card"><div class="gallery-images"><img loading="lazy" src="${esc(item.rgb)}" alt="${esc(item.scene)} RGB frame ${item.frame}"><img loading="lazy" src="${esc(item.gt)}" alt="${esc(item.scene)} filtered geometric GT depth frame ${item.frame}"></div><div class="gallery-caption"><strong>${esc(item.scene)} · frame ${item.frame + 1}</strong><span>${esc(item.note)} · ${esc(item.instance)}</span><span>${esc(item.label)} · valid ${(item.validCoverage * 100).toFixed(1)}% · range ${item.scale[0]}–${item.scale[1]}</span></div></article>`).join('');
+  }
+  function renderCurrentGt(current, currentFrame) {
+    const key = current.sid || current.id;
+    const item = (BENCH.gallery || []).find(candidate => candidate.scene === key && candidate.frame === currentFrame);
+    $('gt-card').hidden = !item;
+    if (!item) return;
+    $('gtimg').src = item.gt; $('gtimg').alt = `${key} filtered geometric GT, frame ${currentFrame + 1}`;
+    $('gt-note').textContent = `valid ${(item.validCoverage * 100).toFixed(1)}% · geometric`;
+  }
+  function caseRank(model, task, current) {
+    const key = current.sid || current.id;
+    const group = BENCH.rankings?.[model]?.[task];
+    const rows = group?.all || [];
+    const row = rows.find(x => x.scene === key);
+    return row ? {rank: rows.indexOf(row) + 1, total: rows.length, value: row.value, metric: group.metric} : null;
+  }
+  function renderSceneEvidence() {
+    const key = scene.sid || scene.id;
+    const isWild = scene.group === 'uveb';
+    const spec = metricSpec[caseTask];
+    const entries = MODELS.map(model => ({model, entry: metricEntry(model)}));
+    const primary = spec.fields[0];
+    const ranked = entries.filter(x => finite(x.entry?.[caseTask]?.[primary[0]])).sort((a, b) => primary[3] ? b.entry[caseTask][primary[0]] - a.entry[caseTask][primary[0]] : a.entry[caseTask][primary[0]] - b.entry[caseTask][primary[0]]);
+    MODELS.forEach(model => {
+      const box = $('score_' + model);
+      if (isWild || !metricEntry(model)) { box.innerHTML = '<span class="score-label">准确度</span>无 GT，暂无准确度分数'; return; }
+      const entry = metricEntry(model), rank = ranked.findIndex(x => x.model === model);
+      const value = entry[caseTask]?.[primary[0]];
+      const cls = rank === 0 ? 'strong' : rank === 1 ? 'under' : '';
+      const detail = spec.fields.slice(1).map(([field, label, dir]) => finite(entry[caseTask]?.[field]) ? `${label}${dir} ${entry[caseTask][field].toFixed(4)}` : `${label}${dir} —`).join(' · ');
+      box.innerHTML = `<span class="score-label">${primary[1]}${primary[2]}</span><span class="${cls}">${finite(value) ? value.toFixed(6) : '—'}</span><span class="score-scope">场景平均 · ${detail}</span>`;
+    });
+    MODELS.forEach(model => {
+      const point = metricEntry(model)?.point?.overall;
+      const chip = $('cham_' + model);
+      chip.textContent = finite(point) ? 'CD ' + point.toFixed(6) : '';
+      chip.classList.toggle('focus', model === scene.focus);
+    });
+    const rank = !isWild ? caseRank(focusModel, caseTask, scene) : null;
+    const quality = rank ? `${rank.rank <= 5 ? '较好/较差榜候选' : '完整评测排序'} · ${rank.metric} ${rank.value.toFixed(6)} · ${rank.rank}/${rank.total}` : '定性案例；没有 GT 准确度排序';
+    const stats = BENCH.sceneStats[key];
+    $('case-context').innerHTML = `<strong>${esc(isWild ? 'Wild / UVEB' : 'Water3D benchmark')} · 关注 ${esc(MODEL_LABELS[focusModel])} · ${esc(caseTask === 'depth' ? 'Depth' : 'Point Cloud')}</strong><br>${esc(quality)}。${esc(scene.focusNote || scene.description || '')}${stats ? ` <span>原始 ${stats.originalFrames || '—'} 帧 · 评测 ${stats.evaluatedFrames} 帧 · 播放器 ${scene.nf} 帧。</span>` : ''}`;
+  }
+  function setLayout(next) {
+    layout = next; $('layout').value = next; document.querySelector('.pgrid').className = 'pgrid layout-' + next;
+    document.querySelectorAll('.pgrid .card').forEach(card => {
+      card.classList.toggle('focused', card.dataset.model === focusModel);
+      card.hidden = next === 'two' ? !['wat3r', 'watervggt'].includes(card.dataset.model) : next === 'single' ? card.dataset.model !== focusModel : false;
+    });
+    resize(); dirty = true;
+  }
+  function showRankedCases() {
+    const group = BENCH.rankings?.[focusModel]?.[caseTask];
+    const rows = group?.available || [];
+    const chosen = caseQuality === 'good' ? rows.slice(0, 5) : rows.slice(-5).reverse();
+    const list = chosen.map(row => SCENES.find(item => item.sid === row.scene || item.id === row.scene)).filter(Boolean);
+    if (!list.length) return;
+    $('sel').replaceChildren(...list.map(item => { const option = document.createElement('option'); option.value = item.id; option.textContent = `${item.title} · ${item.sid || item.id}`; return option; }));
+    document.querySelectorAll('.tab').forEach(tab => { tab.classList.remove('active'); tab.setAttribute('aria-pressed', 'false'); });
+    loadScene(list[0]);
+  }
+  function setupPageMeta() {
+    renderBenchmark(); renderMetricTable('depth'); renderGallery();
+    $('layout').onchange = () => setLayout($('layout').value);
+    $('focus-method').onchange = () => { focusModel = $('focus-method').value; renderSceneEvidence(); setLayout(layout); if (scene && scene.group !== 'uveb' && caseQuality !== 'good') showRankedCases(); };
+    $('case-task').onchange = () => { caseTask = $('case-task').value; renderSceneEvidence(); if (scene && scene.group !== 'uveb') showRankedCases(); };
+    $('case-quality').onchange = () => {
+      caseQuality = $('case-quality').value;
+      showRankedCases();
+    };
+    document.querySelectorAll('.quick').forEach(button => button.onclick = () => {
+      const wanted = button.dataset.quick === 'gt_missing' ? 'video_7762649' : button.dataset.quick;
+      const match = SCENES.find(s => s.id === wanted || s.sid === wanted);
+      if (!match) return;
+      chooseGroup(match.group, match.id); document.querySelector('.selection').scrollIntoView({behavior: 'smooth', block: 'start'});
+      const focusFrame = match.focusFrame != null ? match.focusFrame : (button.dataset.quick === 'creature_15' ? 17 : button.dataset.quick === 'gt_missing' ? 22 : 18);
+      setTimeout(() => { $('frame').value = focusFrame; $('frame').dispatchEvent(new Event('input')); }, 250);
+    });
   }
   try {
     if (!window.THREE || !THREE.OrbitControls || !SCENES || !SCENES.length) {
@@ -97,6 +223,11 @@
       syncing = false; dirty = true;
     }
     const pad = n => String(n).padStart(3, '0');
+    const frameMeta = (current, model, next) => {
+      const meta = current.bins[model];
+      const hd = hdEnabled && meta.hdPath && meta.hdCounts;
+      return {url: (hd ? meta.hdPath : meta.path) + pad(next) + '.bin', count: (hd ? meta.hdCounts : meta.counts)[next], hd};
+    };
     async function getFrame(url, count, signal) {
       if (cache.has(url)) {
         const data = cache.get(url); cache.delete(url); cache.set(url, data);
@@ -176,8 +307,8 @@
     }
     async function dataFor(current, next, signal) {
       return Promise.all(MODELS.map(m => {
-        const meta = current.bins[m];
-        return getFrame(meta.path + pad(next) + '.bin', meta.counts[next], signal);
+        const meta = frameMeta(current, m, next);
+        return getFrame(meta.url, meta.count, signal);
       }));
     }
     // Keep only a small moving window ready. Fetching the entire scene at once
@@ -196,7 +327,7 @@
       return Promise.allSettled(tasks);
     }
     function buffered(current, next) {
-      return MODELS.every(m => cache.has(current.bins[m].path + pad(next) + '.bin'));
+      return MODELS.every(m => cache.has(frameMeta(current, m, next).url));
     }
     function scheduleNext() {
       clearTimeout(timer);
@@ -234,6 +365,7 @@
         image.alt = scene.title + '，第 ' + (frame + 1) + ' 帧';
         image.dataset.frame = String(frame);
         $('fimg').replaceWith(image);
+        renderCurrentGt(selected, frame);
         // Match the projection viewport to the actual input frame. Water3D
         // scenes do not all have the same aspect ratio.
         MODELS.forEach(m => {
@@ -241,7 +373,7 @@
         });
         resize();
         MODELS.forEach((m, i) => {
-          panels[m].data = data[i]; panels[m].count = selected.bins[m].counts[frame]; drawFrame(m);
+          panels[m].data = data[i]; panels[m].count = frameMeta(selected, m, frame).count; drawFrame(m);
           panels[m].renderer.domElement.dataset.frame = String(frame);
         });
         $('play').disabled = false; $('status').textContent = '四模型当前帧已就绪';
@@ -272,6 +404,11 @@
         chip.classList.toggle('focus', score != null && scene.focus === m);
       });
       $('tags').textContent = scene.tags;
+      renderSceneEvidence();
+      const hasHd = MODELS.every(m => scene.bins[m]?.hdPath && scene.bins[m]?.hdCounts);
+      $('hd').disabled = !hasHd;
+      $('hd-note').textContent = hasHd ? '高清模式：按当前场景/帧加载已导出的高密度真实点；抽样和置信度规则与预览一致。' : '当前案例没有已导出的高清数据，保持 8,000 点/帧预览；不会通过增大点尺寸伪造细节。';
+      if (!hasHd) hdEnabled = false;
       $('v').pause(); $('v').removeAttribute('src'); $('v').load();
       $('vcard').hidden = !scene.video;
       $('load-video').hidden = false;
@@ -305,6 +442,12 @@
     $('frame').oninput = () => { stop(); requestFrame(+$('frame').value); };
     $('conf').oninput = () => {
       confidence = +$('conf').value; $('confv').textContent = confidence + '%'; MODELS.forEach(drawFrame);
+    };
+    $('hd').onchange = () => {
+      const hasHd = scene && MODELS.every(m => scene.bins[m]?.hdPath && scene.bins[m]?.hdCounts);
+      hdEnabled = !!$('hd').checked && hasHd;
+      if (!hasHd) { $('hd').checked = false; $('hd-note').textContent = '当前案例没有已导出的高清数据，保持 8,000 点/帧预览；不会通过增大点尺寸伪造细节。'; return; }
+      cache.clear(); requestFrame(frame);
     };
     $('psz').oninput = () => {
       $('pszv').textContent = $('psz').value;
@@ -370,6 +513,7 @@
       }
       requestAnimationFrame(tick);
     }
+    setupPageMeta();
     resize(); requestAnimationFrame(tick);
     let initial;
     try { initial = SCENES.find(s => s.id === decodeURIComponent(location.hash.slice(1))); } catch (_) {}

@@ -3,51 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Wild 与 Water3D 代表场景，以及 Wat3R / Water-VGGT 绝对与相对最差场景（附 Chamfer 分数），逐帧对比四个模型的点云。">
-<title>WaterView · 水下场景四模型对比</title>
-<link rel="stylesheet" href="assets/viewer.css?v=8">
+<meta name="description" content="WaterView：Water3D 本地统一评测、过滤后几何 GT 与四模型逐帧点云对比。">
+<title>WaterView · 水下重建证据浏览器</title>
+<link rel="stylesheet" href="assets/viewer.css?v=10">
 <script defer src="assets/three.min.js"></script>
 <script defer src="assets/js/controls/OrbitControls.js"></script>
-<script defer src="assets/scenes.js?v=8"></script>
-<script defer src="assets/viewer.js?v=8"></script>
+<script defer src="assets/scenes.js?v=10"></script>
+<script defer src="assets/benchmark.js?v=2"></script>
+<script defer src="assets/viewer.js?v=10"></script>
 </head>
 <body>
-<header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div>
+<header><div class="eyebrow">WATERVIEW / EVIDENCE BROWSER</div>
 <h1>同一片水下，四种重建视角。</h1>
-<p class="sub">代表场景 + Wat3R / Water-VGGT 绝对·相对最差场景 · 四模型同步逐帧对比</p></header>
+<p class="sub">本地统一评测结果、过滤后几何 GT 与严格同帧的点云观察。分数来自固定协议，展示设置不会改写评测。</p></header>
 <main>
-<section class="selection" aria-label="选择场景">
-<div class="tabs" role="group" aria-label="数据集">
-<button class="tab active" data-group="uveb" aria-pressed="true">Wild <span>代表 · 5 个</span></button>
-<button class="tab" data-group="water3d" aria-pressed="false">Water3D <span>代表 · 3 个</span></button>
-<button class="tab" data-group="wat3r_worst_abs" aria-pressed="false">Wat3R 绝对最差 <span>5 个</span></button>
-<button class="tab" data-group="wat3r_worst_rel" aria-pressed="false">Wat3R 相对最差 <span>5 个</span></button>
-<button class="tab" data-group="watervggt_worst_abs" aria-pressed="false">V-GGT 绝对最差 <span>5 个</span></button>
-<button class="tab" data-group="watervggt_worst_rel" aria-pressed="false">V-GGT 相对最差 <span>5 个</span></button>
-</div>
-<div class="scene-row"><label for="sel">场景</label><select id="sel"></select><p id="description"></p></div>
-<div class="scene-meta"><span id="badge" class="badge"></span><span id="scene-id"></span><span id="tags"></span></div>
-</section>
-<section class="toolbar" aria-label="播放与显示设置">
-<div class="timeline"><button id="play" disabled>▶ 播放</button><input aria-label="当前帧" type="range" id="frame" min="0" max="31" value="0"><span id="frv">1 / 32</span><span id="status" role="status" aria-live="polite">正在加载当前帧…</span><button id="retry" hidden>重试</button></div>
-<div class="controls">
-<label>帧率 <input type="range" id="fps" min="1" max="10" value="3"><span id="fpsv">3 fps</span></label>
-<label>点大小 <input type="range" id="psz" min="1" max="20" value="8"><span id="pszv">8</span></label>
-<label>保留高置信度点 <input type="range" id="conf" min="5" max="100" value="100"><span id="confv">100%</span></label>
-<label><input type="checkbox" id="sync" checked>视角同步</label>
-<label><input type="checkbox" id="rot">自动旋转</label><button id="align" class="secondary" aria-pressed="false" hidden title="把四个视角吸附到当前帧相机的位置和朝向">对齐输入帧视角</button><button id="reset" class="secondary">重置视角</button>
-</div></section>
-<section class="pgrid" aria-label="四模型点云">
-<article class="card" id="card_wat3r"><h2><i style="background:#6fb3ff"></i>Wat3R <span id="count_wat3r"></span><span class="cham" id="cham_wat3r" title="Chamfer（对真值点云，越小越好）"></span></h2><canvas id="cv_wat3r" aria-label="Wat3R 点云"></canvas><div class="load" id="ld_wat3r">等待加载…</div></article>
-<article class="card" id="card_da3"><h2><i style="background:#ffb066"></i>DA3 <span id="count_da3"></span><span class="cham" id="cham_da3" title="Chamfer（对真值点云，越小越好）"></span></h2><canvas id="cv_da3" aria-label="DA3 点云"></canvas><div class="load" id="ld_da3">等待加载…</div></article>
-<article class="card" id="card_watervggt"><h2><i style="background:#7ddf7d"></i>Water-VGGT <span id="count_watervggt"></span><span class="cham" id="cham_watervggt" title="Chamfer（对真值点云，越小越好）"></span></h2><canvas id="cv_watervggt" aria-label="Water-VGGT 点云"></canvas><div class="load" id="ld_watervggt">等待加载…</div></article>
-<article class="card" id="card_watervggt_wcv"><h2><i style="background:#c49bff"></i>Water-VGGT+WCV <span id="count_watervggt_wcv"></span><span class="cham" id="cham_watervggt_wcv" title="Chamfer（对真值点云，越小越好）"></span></h2><canvas id="cv_watervggt_wcv" aria-label="Water-VGGT+WCV 点云"></canvas><div class="load" id="ld_watervggt_wcv">等待加载…</div></article>
-</section>
-<section class="reference" aria-label="输入画面">
-<article class="card input-card"><h2>输入帧 <span>与当前点云对应</span></h2><img id="fimg" alt="当前场景输入帧" decoding="async"></article>
-<article class="card video-card" id="vcard"><h2>原始视频 <span>Wild / UVEB</span></h2><div class="video-wrap"><video id="v" controls muted loop playsinline preload="none"></video><button id="load-video">观看原始视频</button></div></article>
-<aside class="notes"><h2>观察方法</h2><p>拖动点云旋转，滚轮缩放。开启视角同步，可在相同视角观察四种方法的结构、轮廓与离散点。各模型点云对齐到 Wat3R 参考系。</p><p>「Wild」「Water3D」两组为便于观察差异挑选的代表场景，不代表完整数据集上的性能排名。</p><p>「绝对最差」按该模型自身 Chamfer 最大的 5 个场景选出——可能是全场都难；「相对最差」按该模型与同场最优模型的差距倍数选出——才是该模型独有的失效。各卡片标题栏的数字为该模型在本场的 Chamfer（越小越好），仅 Water3D 场景有真值。</p><p class="muted">Wild 视频来源：UVEB。所有点云均为模型预测结果。</p></aside>
-</section>
-</main><footer>WaterView · Wild &amp; Water3D · Wat3R / DA3 / Water-VGGT / Water-VGGT+WCV</footer>
-<noscript>请启用 JavaScript 以查看交互点云。</noscript>
+<section class="overview panel" aria-label="Benchmark 概况"><div class="section-kicker">01 / BENCHMARK</div><div class="section-heading"><div><h2>先看范围，再看案例</h2><p>Water3D 的 42 个 scene / sequence 使用各自 common_frames；网页播放器只列出已导出的可交互场景。</p></div><span class="local-badge">LOCAL EVALUATION</span></div><div id="benchmark-stats" class="stat-grid"></div><div id="protocol-note" class="protocol-note"></div></section>
+
+<section class="panel metrics-panel" aria-label="定量结果"><div class="section-kicker">02 / QUANTITATIVE RESULTS</div><div class="section-heading"><div><h2>四模型定量结果</h2><p>第一名加粗、第二名下划线；排名按未舍入值和指标方向计算，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div><div id="metrics-table-wrap" class="table-wrap"></div><p class="footnote">↑ 越大越好，↓ 越小越好。Pose / Depth / Point Cloud 分开统计；点云 CD 使用 point.overall。</p></section>
+
+<section class="panel gallery-panel" aria-label="过滤后 GT 画廊"><div class="section-kicker">03 / FILTERED GT GALLERY</div><div class="section-heading"><div><h2>过滤后 GT 代表帧</h2><p>几何深度 + valid_mask；无效区域保持单独的深灰色，不填成连续深度。颜色范围按场景 GT 的 2–98 分位，单位沿用数据集深度定义。</p></div><span class="gallery-count" id="gallery-count"></span></div><div id="gt-gallery" class="gt-gallery"></div></section>
+
+<section class="selection panel" aria-label="案例浏览器"><div class="section-kicker">04 / CASE BROWSER</div><div class="section-heading"><div><h2>案例浏览器</h2><p>按数据、关注方法、观察任务和较好/较差案例切换；排名依据来自 metrics.json，Wild 仅标作定性案例。</p></div><div class="quick-links"><button class="quick" data-quick="creature_15">鲨鱼结构</button><button class="quick" data-quick="creature_03">背景细杆</button><button class="quick" data-quick="gt_missing">GT 缺失</button></div></div><div class="case-controls"><label>关注方法 <select id="focus-method"><option value="wat3r">Wat3R</option><option value="watervggt">Water-VGGT</option></select></label><label>观察任务 <select id="case-task"><option value="depth">Depth · AbsRel↓</option><option value="point">Point Cloud · CD↓</option></select></label><label>案例排序 <select id="case-quality"><option value="good">较好 5 个</option><option value="bad">较差 5 个</option></select></label></div><div class="tabs" role="group" aria-label="数据集"><button class="tab active" data-group="uveb" aria-pressed="true">Wild <span>定性 · 5 个</span></button><button class="tab" data-group="water3d" aria-pressed="false">Water3D <span>代表 · 3 个</span></button><button class="tab" data-group="wat3r_worst_abs" aria-pressed="false">Wat3R 绝对榜 <span>已导出 5 个</span></button><button class="tab" data-group="wat3r_worst_rel" aria-pressed="false">Wat3R 相对榜 <span>辅助</span></button><button class="tab" data-group="watervggt_worst_abs" aria-pressed="false">V-GGT 绝对榜 <span>辅助</span></button><button class="tab" data-group="watervggt_worst_rel" aria-pressed="false">V-GGT 相对榜 <span>已导出 5 个</span></button></div><div class="scene-row"><label for="sel">当前案例</label><select id="sel"></select><p id="description"></p></div><div class="scene-meta"><span id="badge" class="badge"></span><span id="scene-id"></span><span id="tags"></span></div><div id="case-context" class="case-context"></div></section>
+
+<section class="toolbar panel" aria-label="播放与显示设置"><div class="section-kicker">05 / SYNCHRONIZED VIEWER</div><div class="timeline"><button id="play" disabled>▶ 播放</button><input aria-label="当前帧" type="range" id="frame" min="0" max="31" value="0"><span id="frv">1 / 32</span><span id="status" role="status" aria-live="polite">正在加载当前帧…</span><button id="retry" hidden>重试</button></div><div class="controls"><label>布局 <select id="layout"><option value="four">四模型</option><option value="two">两模型大画面</option><option value="single">单模型放大</option></select></label><label>帧率 <input type="range" id="fps" min="1" max="10" value="3"><span id="fpsv">3 fps</span></label><label>点大小 <input type="range" id="psz" min="1" max="20" value="8"><span id="pszv">8</span></label><label>保留高置信度点 <input type="range" id="conf" min="5" max="100" value="100"><span id="confv">100%</span></label><label><input type="checkbox" id="hd">高清点云</label><label><input type="checkbox" id="sync" checked>视角同步</label><label><input type="checkbox" id="rot">自动旋转</label><button id="align" class="secondary" aria-pressed="false" hidden title="把模型视角吸附到当前帧相机的位置和朝向">对齐输入帧视角</button><button id="reset" class="secondary">重置视角</button></div><div id="hd-note" class="setting-note">预览点云为已导出的 8,000 点/帧；高清数据按案例按需加载。</div></section>
+
+<section class="pgrid" aria-label="模型点云"><article class="card" id="card_wat3r" data-model="wat3r"><h2><i style="background:#6fb3ff"></i>Wat3R <span id="count_wat3r"></span><span class="cham" id="cham_wat3r" title="Chamfer / CD（越小越好）"></span></h2><div class="score" id="score_wat3r"></div><canvas id="cv_wat3r" aria-label="Wat3R 点云"></canvas><div class="load" id="ld_wat3r">等待加载…</div></article><article class="card" id="card_da3" data-model="da3"><h2><i style="background:#ffb066"></i>DA3 <span id="count_da3"></span><span class="cham" id="cham_da3" title="Chamfer / CD（越小越好）"></span></h2><div class="score" id="score_da3"></div><canvas id="cv_da3" aria-label="DA3 点云"></canvas><div class="load" id="ld_da3">等待加载…</div></article><article class="card" id="card_watervggt" data-model="watervggt"><h2><i style="background:#7ddf7d"></i>Water-VGGT <span id="count_watervggt"></span><span class="cham" id="cham_watervggt" title="Chamfer / CD（越小越好）"></span></h2><div class="score" id="score_watervggt"></div><canvas id="cv_watervggt" aria-label="Water-VGGT 点云"></canvas><div class="load" id="ld_watervggt">等待加载…</div></article><article class="card" id="card_watervggt_wcv" data-model="watervggt_wcv"><h2><i style="background:#c49bff"></i>Water-VGGT+WCV <span id="count_watervggt_wcv"></span><span class="cham" id="cham_watervggt_wcv" title="Chamfer / CD（越小越好）"></span></h2><div class="score" id="score_watervggt_wcv"></div><canvas id="cv_watervggt_wcv" aria-label="Water-VGGT+WCV 点云"></canvas><div class="load" id="ld_watervggt_wcv">等待加载…</div></article></section><div class="viewer-caption">当前分数是场景平均，不会随帧切换；仅在存在逐帧评测时才显示当前帧分数。高清、置信度和视角均为展示设置。</div>
+
+<section class="reference" aria-label="输入画面与观察说明"><article class="card input-card"><h2>输入帧 <span>与当前点云对应</span></h2><img id="fimg" alt="当前场景输入帧" decoding="async"></article><article class="card gt-card" id="gt-card"><h2>Filtered GT <span id="gt-note">画廊中的代表帧</span></h2><img id="gtimg" alt="当前帧过滤后几何 GT 深度" decoding="async"></article><article class="card video-card" id="vcard"><h2>原始视频 <span>Wild / UVEB</span></h2><div class="video-wrap"><video id="v" controls muted loop playsinline preload="none"></video><button id="load-video">观看原始视频</button></div></article><aside class="notes"><h2>观察方法</h2><p>拖动点云旋转，滚轮缩放。开启视角同步，可在相同视角观察四种方法；「对齐输入帧视角」使用当前帧相机位姿。</p><p>鲨鱼、背景细杆和 GT 缺失入口共享同一个 viewer。文字只描述当前案例，不推广到所有场景。</p><p>Wild 没有 GT：显示“无 GT，暂无准确度分数”，定性案例不冒充误差排名。Water-VGGT+WCV 是本地实现的“先 WCV 增强、再喂 VGGT”，不能直接等同论文完整方法。</p></aside></section>
+</main><footer>WaterView · local Water3D protocol · Wat3R / DA3 / Water-VGGT / Water-VGGT+WCV</footer><noscript>请启用 JavaScript 以查看交互点云。</noscript>
 </body></html>
