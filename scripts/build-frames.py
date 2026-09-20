@@ -7,7 +7,6 @@ ROOT = Path(__file__).resolve().parents[1]
 scenes = json.loads((ROOT / 'scripts/selected-scenes.json').read_text())
 HD_ROOT = ROOT.parent / 'experiments' / 'dynamic_underwater' / 'website' / 'clouds_anim'
 HD_INDEX = HD_ROOT / 'index.json'
-HD_FOCUS = {'creature_03', 'creature_15'}
 hd_index = json.loads(HD_INDEX.read_text()) if HD_INDEX.exists() else {}
 manifest = []
 for scene in scenes:
@@ -27,7 +26,9 @@ for scene in scenes:
         entry['bins'][model] = {'path': str(folder) + '/', 'counts': meta['counts']}
         hd = hd_index.get(scene.get('sid', scene['id']), {}).get(model)
         hd_src = HD_ROOT / f"{scene.get('sid', scene['id'])}_{model}.bin"
-        if scene.get('sid', scene['id']) in HD_FOCUS and hd and hd_src.exists():
+        # 高清文件仍是静态后台资源：只有用户打开高清模式时 viewer 才会请求。
+        # 当前只接入已有的 Wild 20k 导出；没有对应源文件的场景不伪造高清数据。
+        if hd and hd_src.exists():
             hd_folder = Path('clouds_hd') / scene.get('sid', scene['id']) / model
             (ROOT / hd_folder).mkdir(parents=True, exist_ok=True)
             for frame, (count, offset) in enumerate(zip(hd['counts'], hd['offsets'])):
