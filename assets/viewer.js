@@ -5,6 +5,7 @@
   const SCENES = window.WATERVIEW_SCENES;
   const BENCH = window.WATERVIEW_BENCHMARK || {metrics: {}, sceneStats: {}, gallery: [], rankings: {}};
   const MODEL_LABELS = BENCH.models || {wat3r: 'Wat3R', da3: 'DA3', watervggt: 'Water-VGGT', watervggt_wcv: 'Water-VGGT+WCV'};
+  const DEPTH = window.WATERVIEW_DEPTH || [];
   const panels = {};
   const cache = new Map();
   const CACHE_FRAMES = 288; // Two full 32-frame scenes = 256 model-frames (~32 MiB).
@@ -36,6 +37,29 @@
     return BENCH.metrics?.[model]?.[key] || null;
   }
   function finite(value) { return typeof value === 'number' && Number.isFinite(value); }
+  function renderDepthEvidence(currentFrame) {
+    if (!$('depth-sync-note')) return;
+    const key = scene && (scene.sid || scene.id);
+    const item = DEPTH.find(x => x.scene === key && x.frame === currentFrame);
+    const ids = ['depth-rgb','depth-gt','depth-wat3r','depth-da3','depth-watervggt','depth-watervggt_wcv'];
+    if (!item) {
+      ids.forEach(id => { const img=$(id); if(img){img.removeAttribute('src'); img.hidden=true;} });
+      $('depth-unavailable').hidden = false;
+      const sceneItems = DEPTH.filter(x => x.scene === key);
+      $('depth-sync-note').textContent = sceneItems.length
+        ? '当前帧没有导出的 Depth；本场景已导出代表帧：' + sceneItems.map(x => (x.frame + 1)).join('、') + '。拖到对应帧即可联动查看。'
+        : '当前场景暂未导出代表 Depth；点云仍可正常逐帧播放。';
+      return;
+    }
+    $('depth-unavailable').hidden = true;
+    const sources = {
+      'depth-rgb': item.rgb, 'depth-gt': item.gt,
+      'depth-wat3r': item.predictions.wat3r, 'depth-da3': item.predictions.da3,
+      'depth-watervggt': item.predictions.watervggt, 'depth-watervggt_wcv': item.predictions.watervggt_wcv
+    };
+    Object.entries(sources).forEach(([id,src]) => { const img=$(id); img.hidden=false; img.src=src; });
+    $('depth-sync-note').textContent = item.scene + ' · frame ' + (item.frame + 1) + ' · ' + item.instance + ' · GT 有效覆盖 ' + (item.validCoverage*100).toFixed(1) + '%。RGB、GT 和四模型 Depth 与当前点云帧匹配。';
+  }
   function renderSceneGt(current) {
     const key = current.sid || current.id;
     const item = (BENCH.gallery || []).find(candidate => candidate.scene === key);
@@ -368,6 +392,7 @@
           panels[m].renderer.domElement.dataset.frame = String(frame);
         });
         $('play').disabled = false; $('status').textContent = '四模型当前帧已就绪';
+        renderDepthEvidence(frame);
         if (snap) applyCams(requestedFrame);
         const now = performance.now(), interval = 1000 / +$('fps').value;
         lastAdvance = playing && lastAdvance ? Math.max(lastAdvance + interval, now - interval) : now;
@@ -398,6 +423,7 @@
       $('tags').textContent = scene.tags;
       renderSceneEvidence();
       renderSceneGt(scene);
+      renderDepthEvidence(initialFrame);
       const hasHd = MODELS.every(m => scene.bins[m]?.hdPath && scene.bins[m]?.hdCounts);
       $('hd').disabled = !hasHd;
       $('hd-note').textContent = hasHd ? '高清模式：按当前场景/帧加载已导出的高密度真实点；抽样和置信度规则与预览一致。' : '当前案例没有已导出的高清数据，保持 8,000 点/帧预览；不会通过增大点尺寸伪造细节。';
