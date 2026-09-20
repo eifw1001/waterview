@@ -1,0 +1,8 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · Discussion</title><link rel="stylesheet" href="assets/viewer.css?v=14"></head><body>
+<header><div class="eyebrow">WATERVIEW / DISCUSSION</div><h1>最后不是“谁赢了”，而是下一步该问什么。</h1><p class="sub">围绕 Benchmark、模型失败位置和 underwater-specific physics 的三个讨论问题。</p></header>
+<nav class="site-nav" aria-label="页面导航"><a href="index.html">汇报首页</a><a href="viewer.html">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a><a href="discussion.html" aria-current="page">讨论问题</a></nav>
+<main><section class="panel"><div class="section-kicker">DISCUSSION QUESTIONS</div><div class="discussion-grid">
+<article><span>Q1 · BENCHMARK RELIABILITY</span><h3>Water3D 的 GT 是否存在 coverage / filtering 问题？</h3><p>尤其是 RGB 中鱼等动态目标真实存在、Filtered GT 中对应区域却缺失时，GT-based metric 是否会惩罚视觉上合理的预测？后续评价是否需要同时结合 RGB、Depth 和 Point Cloud？</p></article>
+<article><span>Q2 · WHERE DO MODELS FAIL?</span><h3>Wat3R / Water-VGGT 到底从哪一层开始失败？</h3><p>对照同一场景的 RGB → Depth → Point Cloud，检查细杆、鱼群、低纹理、浑浊区域：问题是在 Depth 阶段已经出现，还是 Depth 尚可、到了三维点云重建才出现断裂、缺失或错位？</p></article>
+<article><span>Q3 · DATA OR UNDERWATER PHYSICS?</span><h3>Baseline 的瓶颈主要来自数据，还是水下特性没有建模充分？</h3><p>需要区分两类原因：真实水下训练数据的数量 / 场景多样性是否不足；以及折射、散射、颜色与波长相关衰减等 underwater-specific physics 是否仍没有被模型充分利用。</p></article>
+</div></section></main><footer>WaterView · discussion after quantitative and qualitative evidence</footer></body></html>
