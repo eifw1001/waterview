@@ -1,47 +1,21 @@
-<!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="WaterView：Water3D 本地统一评测、过滤后几何 GT 与四模型逐帧点云对比。">
-<title>WaterView · 四模型点云对比</title>
-<link rel="stylesheet" href="assets/viewer.css?v=13">
-<script defer src="assets/three.min.js"></script>
-<script defer src="assets/js/controls/OrbitControls.js"></script>
-<script defer src="assets/scenes.js?v=11"></script>
-<script defer src="assets/benchmark.js?v=2"></script>
-<script defer src="assets/depth.js?v=1"></script>
-<script defer src="assets/viewer.js?v=14"></script>
-</head>
-<body>
-<header><div class="eyebrow">WATERVIEW / EVIDENCE BROWSER</div>
-<h1>同一片水下，四种重建视角。</h1>
-<p class="sub">逐帧对比四模型点云 · 同帧 RGB / Depth 证据 · 同步视角</p></header>
-<nav class="site-nav" aria-label="页面导航"><a href="index.html" aria-current="page">点云对比</a><a href="benchmark.html">定量结果</a><a href="gt.html">GT 检查</a><a href="depth.html">深度对比</a></nav>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · 汇报首页</title><link rel="stylesheet" href="assets/viewer.css?v=13"><script defer src="assets/benchmark.js?v=2"></script><script defer src="assets/reports.js?v=3"></script></head><body>
+<header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div><h1>水下三维重建 · 方法与定量结果</h1><p class="sub">方法为什么适合水下 → 指标在测什么 → 实际跑出来怎样。</p></header>
+<nav class="site-nav" aria-label="页面导航"><a href="index.html" aria-current="page">汇报首页</a><a href="viewer.html">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a></nav>
 <main>
-
-<section class="selection panel" aria-label="案例浏览器"><div class="section-heading"><div><h2>点云对比</h2><p>选择场景后播放；鲨鱼、细杆与 GT 缺失案例可直接跳转。</p></div><div class="quick-links"><button class="quick" data-quick="creature_15">鲨鱼结构</button><button class="quick" data-quick="creature_03">背景细杆</button><button class="quick" data-quick="gt_missing">GT 缺失</button></div></div><details class="ranking-options"><summary>按指标筛选案例</summary><div class="case-controls"><label>关注方法 <select id="focus-method"><option value="wat3r">Wat3R</option><option value="watervggt">Water-VGGT</option></select></label><label>观察任务 <select id="case-task"><option value="point">Point Cloud · CD↓</option><option value="depth">Depth · AbsRel↓</option></select></label><label>案例排序 <select id="case-quality"><option value="good">较好 5 个</option><option value="bad">较差 5 个</option></select></label></div></details><div class="tabs" role="group" aria-label="数据集"><button class="tab active" data-group="uveb" aria-pressed="true">Wild <span>定性 · 5 个</span></button><button class="tab" data-group="water3d" aria-pressed="false">Water3D <span>代表 · 3 个</span></button><button class="tab" data-group="wat3r_worst_abs" aria-pressed="false">Wat3R 绝对榜 <span>已导出 5 个</span></button><button class="tab" data-group="wat3r_worst_rel" aria-pressed="false">Wat3R 相对榜 <span>辅助</span></button><button class="tab" data-group="watervggt_worst_abs" aria-pressed="false">V-GGT 绝对榜 <span>辅助</span></button><button class="tab" data-group="watervggt_worst_rel" aria-pressed="false">V-GGT 相对榜 <span>已导出 5 个</span></button></div><div class="scene-row"><label for="sel">当前案例</label><select id="sel"></select><p id="description"></p></div><div class="scene-meta"><span id="badge" class="badge"></span><span id="scene-id"></span><span id="tags"></span></div><div id="case-context" class="case-context"></div></section>
-
-<section class="toolbar panel" aria-label="播放与显示设置"><div class="timeline"><button id="play" disabled>▶ 播放</button><input aria-label="当前帧" type="range" id="frame" min="0" max="31" value="0"><span id="frv">1 / 32</span><span id="status" role="status" aria-live="polite">正在加载当前帧…</span><button id="retry" hidden>重试</button></div><div class="controls"><label>布局 <select id="layout"><option value="four">四模型</option><option value="two">两模型大画面</option><option value="single">单模型放大</option></select></label><label>播放模式 <select id="buffer-mode"><option value="complete">整段缓冲 · 流畅播放</option><option value="stream">边加载边播放</option></select></label><label>帧率 <input type="range" id="fps" min="1" max="15" value="8"><span id="fpsv">8 fps</span></label><label>点大小 <input type="range" id="psz" min="1" max="20" value="8"><span id="pszv">8</span></label><label>保留高置信度点 <input type="range" id="conf" min="5" max="100" value="100"><span id="confv">100%</span></label><label><input type="checkbox" id="hd">高清点云</label><label><input type="checkbox" id="sync" checked>视角同步</label><label><input type="checkbox" id="rot">自动旋转</label><button id="align" class="secondary" aria-pressed="false" hidden title="把模型视角吸附到当前帧相机的位置和朝向">对齐输入帧视角</button><button id="reset" class="secondary">重置视角</button></div><div id="hd-note" class="setting-note">预览点云为已导出的 8,000 点/帧；高清数据按案例按需加载。</div></section>
-
-<section class="pgrid" aria-label="模型点云"><article class="card" id="card_wat3r" data-model="wat3r"><h2><i style="background:#6fb3ff"></i>Wat3R <span id="count_wat3r"></span><span class="cham" id="cham_wat3r" title="Chamfer / CD（越小越好）"></span></h2><div class="score" id="score_wat3r"></div><canvas id="cv_wat3r" aria-label="Wat3R 点云"></canvas><div class="load" id="ld_wat3r">等待加载…</div></article><article class="card" id="card_da3" data-model="da3"><h2><i style="background:#ffb066"></i>DA3 <span id="count_da3"></span><span class="cham" id="cham_da3" title="Chamfer / CD（越小越好）"></span></h2><div class="score" id="score_da3"></div><canvas id="cv_da3" aria-label="DA3 点云"></canvas><div class="load" id="ld_da3">等待加载…</div></article><article class="card" id="card_watervggt" data-model="watervggt"><h2><i style="background:#7ddf7d"></i>Water-VGGT <span id="count_watervggt"></span><span class="cham" id="cham_watervggt" title="Chamfer / CD（越小越好）"></span></h2><div class="score" id="score_watervggt"></div><canvas id="cv_watervggt" aria-label="Water-VGGT 点云"></canvas><div class="load" id="ld_watervggt">等待加载…</div></article><article class="card" id="card_watervggt_wcv" data-model="watervggt_wcv"><h2><i style="background:#c49bff"></i>Water-VGGT+WCV <span id="count_watervggt_wcv"></span><span class="cham" id="cham_watervggt_wcv" title="Chamfer / CD（越小越好）"></span></h2><div class="score" id="score_watervggt_wcv"></div><canvas id="cv_watervggt_wcv" aria-label="Water-VGGT+WCV 点云"></canvas><div class="load" id="ld_watervggt_wcv">等待加载…</div></article></section>
-<div class="viewer-caption">分数为场景平均。默认整段缓冲后播放；下方 Depth 只在该 scene / frame 已有导出图时同步显示。</div>
-
-<section class="panel synchronized-depth" aria-label="同步 RGB 与深度证据">
-  <div class="section-heading"><div><h2>同帧 Depth 对比</h2><p id="depth-sync-note">正在匹配当前场景的已导出 Depth…</p></div><a class="text-link" href="depth.html">完整 Depth 页面 ↗</a></div>
-  <div class="depth-reference-row">
-    <article class="card"><h2>Input RGB</h2><img id="depth-rgb" alt="当前同帧 RGB"></article>
-    <article class="card"><h2>Filtered GT Depth</h2><img id="depth-gt" alt="当前同帧 filtered GT depth"></article>
-  </div>
-  <div class="depth-model-row">
-    <article class="card"><h2>Wat3R Depth</h2><img id="depth-wat3r" alt="Wat3R depth"></article>
-    <article class="card"><h2>DA3 Depth</h2><img id="depth-da3" alt="DA3 depth"></article>
-    <article class="card"><h2>Water-VGGT Depth</h2><img id="depth-watervggt" alt="Water-VGGT depth"></article>
-    <article class="card"><h2>Water-VGGT+WCV Depth</h2><img id="depth-watervggt_wcv" alt="Water-VGGT+WCV depth"></article>
-  </div>
-  <div id="depth-unavailable" class="depth-unavailable" hidden>该 scene / frame 目前没有导出的 Depth 图。当前仓库只有 10 个代表帧的 Depth 可视化。</div>
+<section class="panel method-overview" aria-label="Method Overview">
+<div class="section-kicker">01 / METHOD OVERVIEW</div>
+<div class="section-heading"><div><h2>两条 underwater adaptation 路线</h2><p>这里先讲到能看懂结果为止，不把首页变成论文阅读页。</p></div></div>
+<div class="method-grid">
+<article class="method-card"><div class="method-tag">Wat3R</div><h3>从真实无标注水下视频中“学会适应水下”</h3><p>Wat3R 使用 teacher–student 跨域半监督学习，把大量没有 3D 标注的真实水下视频用于域适应；cross-view consistency 再利用其他视角的几何约束，弥补衰减、散射和低纹理造成的信息损失。</p><p class="method-summary"><strong>一句话：</strong>真实水下视频 + 跨视角几何一致性，让通用 3D 模型迁移到水下域。</p><a href="https://github.com/LSXI7/Wat3R" target="_blank" rel="noreferrer">Wat3R project ↗</a></article>
+<article class="method-card"><div class="method-tag">Water-VGGT / WCV</div><h3>把“现在是什么水况”显式告诉模型</h3><p><strong>WCV = Water Condition Vector</strong>，用于表示与折射、可见度、散射以及光谱 / 波长衰减相关的水下条件。论文方法把 condition embedding 注入 Transformer，使几何推理能随水况变化。</p><p class="method-summary"><strong>一句话：</strong>Wat3R 主要让模型从水下数据中适应；Water-VGGT 则显式告诉模型当前水况。</p><a href="https://www.sciencedirect.com/science/article/abs/pii/S0029801826028787" target="_blank" rel="noreferrer">Water-VGGT paper ↗</a></article>
+</div>
+<div class="implementation-warning"><strong>注意：</strong>本站 <b>Water-VGGT+WCV</b> 是本地“先 WCV 增强、再喂 VGGT”的实验实现，不等于论文中将 WCV condition embedding 注入 Transformer 的完整 Water-VGGT。</div>
 </section>
 
-<section class="reference" aria-label="输入画面与观察说明"><article class="card input-card"><h2>输入帧 <span>与当前点云对应</span></h2><img id="fimg" alt="当前场景输入帧" decoding="async"></article><article class="card video-card" id="vcard"><h2>原始视频 <span>Wild / UVEB</span></h2><div class="video-wrap"><video id="v" controls muted loop playsinline preload="none"></video><button id="load-video">观看原始视频</button></div></article><article class="card gt-card" id="gt-card"><h2>场景参考 GT <span id="gt-note">过滤后深度代表帧</span></h2><img id="gtimg" alt="当前场景的过滤后 GT 参考深度" decoding="async"><p id="gt-reference-note" class="notes"></p></article><aside class="notes"><h2>观察方法</h2><p>拖动点云旋转，滚轮缩放。开启视角同步，可在相同视角观察四种方法；「对齐输入帧视角」使用当前帧相机位姿。</p><p>鲨鱼、背景细杆和 GT 缺失入口共享同一个 viewer。文字只描述当前案例，不推广到所有场景。</p><p>Wild 没有 GT：显示“无 GT，暂无准确度分数”，定性案例不冒充误差排名。Water-VGGT+WCV 是本地实现的“先 WCV 增强、再喂 VGGT”，不能直接等同论文完整方法。</p></aside></section>
-</main><footer>WaterView · local Water3D protocol · Wat3R / DA3 / Water-VGGT / Water-VGGT+WCV</footer><noscript>请启用 JavaScript 以查看交互点云。</noscript>
-</body></html>
+<section class="panel metrics-panel" aria-label="定量结果"><div class="section-kicker">02 / QUANTITATIVE RESULTS</div><div class="section-heading"><div><h2>四模型定量结果</h2><p>第一名加粗、第二名下划线；排名按未舍入值和指标方向计算，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>
+<div class="metric-meaning"><span><strong>Pose</strong>：相机轨迹 / 位姿估计是否准确</span><span><strong>Depth</strong>：逐像素深度预测是否准确</span><span><strong>Point Cloud</strong>：最终三维几何是否与 GT 对齐、完整</span></div>
+<div id="metric-explanation" class="metric-explanation"></div><div id="metrics-table-wrap" class="table-wrap"></div><p class="footnote">↑ 越大越好，↓ 越小越好。Pose / Depth / Point Cloud 分开统计；点云 CD 使用 point.overall。</p></section>
+
+<section class="overview panel" aria-label="Benchmark 概况"><div class="section-kicker">03 / BENCHMARK INFORMATION</div><div class="section-heading"><div><h2>评测范围</h2><p>Water3D 的 42 个 scene / sequence 使用各自 common_frames；网页播放器只列出已导出的可交互场景。</p></div><span class="local-badge">LOCAL EVALUATION</span></div><div id="benchmark-stats" class="stat-grid"></div><div id="protocol-note" class="protocol-note"></div></section>
+<section class="panel"><h2>逐场景数据概况</h2><div id="scene-table" class="table-wrap"></div></section>
+</main><footer>WaterView · COLMAP 参考深度，无物理绝对尺度</footer></body></html>
