@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · 汇报首页</title><link rel="stylesheet" href="assets/viewer.css?v=17"><script defer src="assets/benchmark.js?v=2"></script><script defer src="assets/reports.js?v=3"></script></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · 汇报首页</title><link rel="stylesheet" href="assets/viewer.css?v=17"><script defer src="assets/benchmark.js?v=3"></script><script defer src="assets/reports.js?v=4"></script></head><body>
 <header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div><h1>水下三维重建 · 方法与定量结果</h1><p class="sub">方法为什么适合水下 → 指标在测什么 → 实际跑出来怎样。</p></header>
 <nav class="site-nav" aria-label="页面导航"><a href="index.html" aria-current="page">汇报首页</a><a href="viewer.html">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a><a href="discussion.html">讨论问题</a></nav>
 <main>
@@ -9,7 +9,7 @@
 <article class="method-card"><div class="method-tag">Wat3R</div><h3>核心：把预训练 VGGT 迁移到真实水下域</h3><p>Wat3R 不是从零训练一个新 backbone，而是以 <b>预训练 VGGT</b> 为基础做 <b>Mean Teacher 跨域半监督训练</b>：一边使用带几何标注的合成水下数据，一边使用大量没有 3D 标注的真实水下视频。</p><p><b>Teacher</b> 给真实视频产生 camera / depth / point-map 伪标签，<b>Student</b> 用这些伪标签学习；Teacher 参数由 Student 的 EMA 更新。除此之外，再加入 <b>per-view consistency + cross-view consistency</b>，用其他视角中可靠的几何线索约束当前视角，减少散射、衰减和低可见度造成的信息损失。</p><p class="method-summary"><strong>汇报一句话：</strong>不是显式告诉模型“这是什么水”，而是用合成水下监督 + 大量真实无标注视频，把原本的 VGGT 适配到水下。</p></article>
 <article class="method-card"><div class="method-tag">Water-VGGT / WCV</div><h3>核心：把水体条件显式注入 VGGT 的几何推理</h3><p><b>WCV = Water Condition Vector（水体条件向量）</b>，表示与折射、能见度、散射和波长相关衰减有关的条件变量 / latent proxies。它不是简单把图像“增强一下”，而是转成 condition embedding，通过 <b>FiLM + conditional attention bias</b> 注入 Transformer 和 prediction heads。</p><p><b>训练也不是只训练 WCV：</b>① 先在 Underwater3D-36K 上预训练 WCV estimator；② 用官方 pretrained VGGT 初始化并冻结 Transformer，只训练 WCV embedding、FiLM、conditional attention bias、Refraction Camera Head 等新增模块；③ 再逐步解冻部分 Transformer，最后整套 Water-VGGT 端到端联合 fine-tune。</p><p class="method-summary"><strong>汇报一句话：</strong>Wat3R 是“让 VGGT 从水下数据里学会适应”；Water-VGGT 是“把当前水况作为条件直接注入 VGGT，并最终联合微调”。</p></article>
 </div>
-<div class="implementation-warning"><strong>注意：</strong>本站的 <b>Water-VGGT+WCV</b> 本地实验只是“先做 WCV 条件增强 / 预处理，再送入已有几何模型”，<b>不等于论文完整 Water-VGGT</b>；论文版的 WCV 是注入 Transformer 内部并参与后续联合训练的。</div>
+
 </section>
 
 <section class="panel metrics-panel" aria-label="定量结果"><div class="section-kicker">QUANTITATIVE RESULTS</div><div class="section-heading"><div><h2>四模型定量结果</h2><p>第一名加粗、第二名下划线；排名按未舍入值和指标方向计算，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>

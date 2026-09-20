@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · Benchmark 与定量结果</title><link rel="stylesheet" href="assets/viewer.css?v=13"><script defer src="assets/benchmark.js?v=2"></script><script defer src="assets/reports.js?v=3"></script></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · Benchmark 与定量结果</title><link rel="stylesheet" href="assets/viewer.css?v=13"><script defer src="assets/benchmark.js?v=3"></script><script defer src="assets/reports.js?v=4"></script></head><body>
 <header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div><h1>定量结果</h1><p class="sub">方法为什么适合水下 → 指标在测什么 → 实际跑出来怎样。</p></header>
 <nav class="site-nav" aria-label="页面导航"><a href="index.html">点云对比</a><a href="benchmark.html" aria-current="page">定量结果</a><a href="gt.html">GT 检查</a><a href="depth.html">深度对比</a></nav>
 <main>
@@ -9,7 +9,7 @@
 <article class="method-card"><div class="method-tag">Wat3R</div><h3>从真实无标注水下视频中“学会适应水下”</h3><p>Wat3R 使用 teacher–student 跨域半监督学习，把大量没有 3D 标注的真实水下视频用于域适应；cross-view consistency 再利用其他视角的几何约束，弥补衰减、散射和低纹理造成的信息损失。</p><p class="method-summary"><strong>一句话：</strong>真实水下视频 + 跨视角几何一致性，让通用 3D 模型迁移到水下域。</p><a href="https://github.com/LSXI7/Wat3R" target="_blank" rel="noreferrer">Wat3R project ↗</a></article>
 <article class="method-card"><div class="method-tag">Water-VGGT / WCV</div><h3>把“现在是什么水况”显式告诉模型</h3><p><strong>WCV = Water Condition Vector</strong>，用于表示与折射、可见度、散射以及光谱 / 波长衰减相关的水下条件。论文方法把 condition embedding 注入 Transformer，使几何推理能随水况变化。</p><p class="method-summary"><strong>一句话：</strong>Wat3R 主要让模型从水下数据中适应；Water-VGGT 则显式告诉模型当前水况。</p><a href="https://www.sciencedirect.com/science/article/abs/pii/S0029801826028787" target="_blank" rel="noreferrer">Water-VGGT paper ↗</a></article>
 </div>
-<div class="implementation-warning"><strong>注意：</strong>本站 <b>Water-VGGT+WCV</b> 是本地“先 WCV 增强、再喂 VGGT”的实验实现，不等于论文中将 WCV condition embedding 注入 Transformer 的完整 Water-VGGT。</div>
+
 </section>
 
 <section class="panel metrics-panel" aria-label="定量结果"><div class="section-kicker">02 / QUANTITATIVE RESULTS</div><div class="section-heading"><div><h2>四模型定量结果</h2><p>第一名加粗、第二名下划线；排名按未舍入值和指标方向计算，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>

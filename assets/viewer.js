@@ -4,7 +4,7 @@
   const MODELS = ['wat3r', 'da3', 'watervggt', 'watervggt_wcv'];
   const SCENES = window.WATERVIEW_SCENES;
   const BENCH = window.WATERVIEW_BENCHMARK || {metrics: {}, sceneStats: {}, gallery: [], rankings: {}};
-  const MODEL_LABELS = BENCH.models || {wat3r: 'Wat3R', da3: 'DA3', watervggt: 'Water-VGGT', watervggt_wcv: 'Water-VGGT+WCV'};
+  const MODEL_LABELS = BENCH.models || {wat3r: 'Wat3R', da3: 'DA3', watervggt: 'VGGT', watervggt_wcv: 'WCV + VGGT'};
   const DEPTH = window.WATERVIEW_DEPTH || [];
   const panels = {};
   const cache = new Map();
@@ -465,7 +465,7 @@
       renderDepthEvidence(initialFrame);
       const hasHd = MODELS.every(m => scene.bins[m]?.hdPath && scene.bins[m]?.hdCounts);
       $('hd').disabled = !hasHd;
-      $('hd-note').textContent = hasHd ? '高清模式：按当前场景/帧加载已导出的高密度真实点；抽样和置信度规则与预览一致。' : '当前案例没有已导出的高清数据，保持 8,000 点/帧预览；不会通过增大点尺寸伪造细节。';
+      $('hd-note').textContent = hasHd ? `高清模式：${Math.max(...scene.bins.wat3r.hdCounts).toLocaleString()} 点/帧真实导出，按当前场景/帧加载。` : '当前案例没有高密度导出，保持预览点云。';
       if (!hasHd) hdEnabled = false;
       $('hd').checked = hdEnabled;
       $('v').pause(); $('v').removeAttribute('src'); $('v').load();
@@ -505,7 +505,7 @@
     $('hd').onchange = () => {
       const hasHd = scene && MODELS.every(m => scene.bins[m]?.hdPath && scene.bins[m]?.hdCounts);
       hdEnabled = !!$('hd').checked && hasHd;
-      if (!hasHd) { $('hd').checked = false; $('hd-note').textContent = '当前案例没有已导出的高清数据，保持 8,000 点/帧预览；不会通过增大点尺寸伪造细节。'; return; }
+      if (!hasHd) { $('hd').checked = false; $('hd-note').textContent = '当前案例没有高密度导出，保持预览点云。'; return; }
       stop(); cancelPrefetch(); requestFrame(frame);
     };
     $('psz').oninput = () => {

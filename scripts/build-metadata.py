@@ -22,8 +22,8 @@ GALLERY_PATH = ROOT / "assets/gt_gallery.json"
 
 MODELS = ["wat3r", "da3", "watervggt", "watervggt_wcv"]
 MODEL_LABELS = {
-    "wat3r": "Wat3R", "da3": "DA3", "watervggt": "Water-VGGT",
-    "watervggt_wcv": "Water-VGGT+WCV",
+    "wat3r": "Wat3R", "da3": "DA3", "watervggt": "VGGT",
+    "watervggt_wcv": "WCV + VGGT",
 }
 
 

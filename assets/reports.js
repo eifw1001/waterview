@@ -59,7 +59,7 @@ const MODEL_LABELS=BENCH.models;
 if ($('metric-tabs') && $('metrics-table-wrap')) renderMetricTable();
 if ($('benchmark-stats')) {renderBenchmark();
  const res=v=>Array.isArray(v)?v.join(' × '):'—';
- if ($('scene-table')) $('scene-table').innerHTML='<table class="metric-table"><thead><tr><th>场景</th><th>原始帧数</th><th>评测帧数</th><th>原图</th><th>GT</th><th>Water-VGGT 输入</th></tr></thead><tbody>'+Object.entries(BENCH.sceneStats).map(([id,s])=>`<tr><td>${esc(id)}</td><td>${s.originalFrames}</td><td>${s.evaluatedFrames}</td><td>${res(s.sourceResolution)}</td><td>${res(s.gtResolution)}</td><td>${res(s.inputResolution)}</td></tr>`).join('')+'</tbody></table>';
+ if ($('scene-table')) $('scene-table').innerHTML='<table class="metric-table"><thead><tr><th>场景</th><th>原始帧数</th><th>评测帧数</th><th>原图</th><th>GT</th><th>VGGT 输入</th></tr></thead><tbody>'+Object.entries(BENCH.sceneStats).map(([id,s])=>`<tr><td>${esc(id)}</td><td>${s.originalFrames}</td><td>${s.evaluatedFrames}</td><td>${res(s.sourceResolution)}</td><td>${res(s.gtResolution)}</td><td>${res(s.inputResolution)}</td></tr>`).join('')+'</tbody></table>';
 }
 if ($('gt-gallery')) renderGallery();
 const dialog=document.createElement('dialog');dialog.className='image-dialog';dialog.innerHTML='<button aria-label="关闭大图">关闭</button><img alt="放大查看">';document.body.append(dialog);dialog.querySelector('button').onclick=()=>dialog.close();dialog.onclick=e=>{if(e.target===dialog)dialog.close()};
