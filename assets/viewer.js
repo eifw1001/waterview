@@ -84,6 +84,34 @@
     const entries = MODELS.map(model => ({model, entry: metricEntry(model)}));
     const primary = spec.fields[0];
     const ranked = entries.filter(x => finite(x.entry?.[caseTask]?.[primary[0]])).sort((a, b) => primary[3] ? b.entry[caseTask][primary[0]] - a.entry[caseTask][primary[0]] : a.entry[caseTask][primary[0]] - b.entry[caseTask][primary[0]]);
+    const miniSpecs = [
+      {path:['depth','abs_rel'], label:'AbsRel↓', higher:false},
+      {path:['point','overall'], label:'CD↓', higher:false},
+      {path:['point','fscore'], label:'F-score↑', higher:true}
+    ];
+    const miniRanks = miniSpecs.map(spec => {
+      const vals = MODELS.map(model => {
+        const e = metricEntry(model);
+        const v = e?.[spec.path[0]]?.[spec.path[1]];
+        return {model, value:v};
+      }).filter(x => finite(x.value)).sort((a,b) => spec.higher ? b.value-a.value : a.value-b.value);
+      return [...new Set(vals.map(x=>x.value))];
+    });
+    MODELS.forEach(model => {
+      const strip = $('metrics_' + model);
+      if (!strip) return;
+      const entry = metricEntry(model);
+      if (isWild || !entry) {
+        strip.innerHTML = '<span>无 GT 定量分数</span>';
+        return;
+      }
+      strip.innerHTML = miniSpecs.map((spec,i) => {
+        const v = entry?.[spec.path[0]]?.[spec.path[1]];
+        const r = miniRanks[i].indexOf(v);
+        const cls = r===0 ? 'mini-best' : r===1 ? 'mini-second' : '';
+        return '<span class="' + cls + '"><b>' + spec.label + '</b> ' + (finite(v) ? v.toFixed(4) : '—') + '</span>';
+      }).join('');
+    });
     MODELS.forEach(model => {
       const box = $('score_' + model);
       if (isWild || !metricEntry(model)) { box.innerHTML = '<span class="score-label">准确度</span>无 GT，暂无准确度分数'; return; }
