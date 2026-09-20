@@ -29,3 +29,10 @@ html{scroll-behavior:smooth;scroll-padding-top:12px}
 .link-button{display:inline-flex;align-items:center;text-decoration:none;padding:8px 12px;border:1px solid var(--line);border-radius:6px}
 @media(max-width:1000px){.depth-row-models{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.depth-row-reference,.depth-row-models{grid-template-columns:1fr}}
+
+/* v16: always-visible per-model metric strip */
+.metric-strip{display:flex;gap:6px;flex-wrap:wrap;padding:7px 10px;background:#0b131c;border-bottom:1px solid var(--line);font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.metric-strip span{padding:3px 6px;border:1px solid #26384b;border-radius:999px;white-space:nowrap}
+.metric-strip b{color:var(--text);font-weight:600}
+.metric-strip .mini-best{font-weight:800;color:#effff6;border-color:#497e64}
+.metric-strip .mini-second{text-decoration:underline;text-decoration-color:#ffbd79;text-decoration-thickness:2px;text-underline-offset:2px}
