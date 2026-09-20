@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="WaterView：Water3D 本地统一评测、过滤后几何 GT、四模型逐帧点云与深度对比。">
 <title>WaterView · 点云与深度对比</title>
-<link rel="stylesheet" href="assets/viewer.css?v=12">
+<link rel="stylesheet" href="assets/viewer.css?v=14">
 <script defer src="assets/three.min.js"></script>
 <script defer src="assets/js/controls/OrbitControls.js"></script>
 <script defer src="assets/scenes.js?v=11"></script>
@@ -16,8 +16,8 @@
 </head>
 <body>
 <header><div class="eyebrow">WATERVIEW / EVIDENCE BROWSER</div>
-<h1>同一片水下，从 Depth 到 Point Cloud。</h1>
-<p class="sub">逐帧点云对比 · 同场景代表深度对比 · 缓存与高清加载 · 同步视角</p></header>
+<h1>同一场景：Point Cloud → Depth。</h1>
+<p class="sub">上面四模型点云，下面两行 Depth；用于快速判断问题到底从哪一阶段开始。</p></header>
 <nav class="site-nav" aria-label="页面导航"><a href="index.html">汇报首页</a><a href="viewer.html" aria-current="page">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a></nav>
 <main>
 <section class="selection panel" aria-label="案例浏览器"><div class="section-heading"><div><h2>点云对比</h2><p>选择场景后播放；鲨鱼、细杆与 GT 缺失案例可直接跳转。</p></div><div class="quick-links"><button class="quick" data-quick="creature_15">鲨鱼结构</button><button class="quick" data-quick="creature_03">背景细杆</button><button class="quick" data-quick="gt_missing">GT 缺失</button></div></div><details class="ranking-options"><summary>按指标筛选案例</summary><div class="case-controls"><label>关注方法 <select id="focus-method"><option value="wat3r">Wat3R</option><option value="watervggt">Water-VGGT</option></select></label><label>观察任务 <select id="case-task"><option value="point">Point Cloud · CD↓</option><option value="depth">Depth · AbsRel↓</option></select></label><label>案例排序 <select id="case-quality"><option value="good">较好 5 个</option><option value="bad">较差 5 个</option></select></label></div></details><div class="tabs" role="group" aria-label="数据集"><button class="tab active" data-group="uveb" aria-pressed="true">Wild <span>定性 · 5 个</span></button><button class="tab" data-group="water3d" aria-pressed="false">Water3D <span>代表 · 3 个</span></button><button class="tab" data-group="wat3r_worst_abs" aria-pressed="false">Wat3R 绝对榜 <span>已导出 5 个</span></button><button class="tab" data-group="wat3r_worst_rel" aria-pressed="false">Wat3R 相对榜 <span>辅助</span></button><button class="tab" data-group="watervggt_worst_abs" aria-pressed="false">V-GGT 绝对榜 <span>辅助</span></button><button class="tab" data-group="watervggt_worst_rel" aria-pressed="false">V-GGT 相对榜 <span>已导出 5 个</span></button></div><div class="scene-row"><label for="sel">当前案例</label><select id="sel"></select><p id="description"></p></div><div class="scene-meta"><span id="badge" class="badge"></span><span id="scene-id"></span><span id="tags"></span></div><div id="case-context" class="case-context"></div></section>
@@ -28,14 +28,14 @@
 <div class="viewer-caption">分数为场景平均。默认整段缓冲后播放；抽帧序列按所选 fps 播放，不等同原视频帧率。</div>
 
 <section class="panel inline-depth" aria-label="同场景深度证据">
-<div class="section-heading"><div><h2>同场景 Depth 证据</h2><p id="inline-depth-note">若该 Water3D 场景已导出代表深度帧，这里紧接点云显示 RGB / GT 与四方法 Depth，便于判断误差是在深度阶段还是点云阶段出现。</p></div><a class="secondary link-button" href="depth.html">打开完整深度画廊</a></div>
+<div class="section-heading"><div><h2>Depth 对比 · 两行紧接点云</h2><p id="inline-depth-note">第一行看 Input RGB + GT Depth；第二行看四模型 Predicted Depth。与上面的点云使用同一场景，便于定位错误来源。</p></div><a class="secondary link-button" href="depth.html">打开完整深度画廊</a></div>
 <div id="inline-depth-empty" class="protocol-note">当前案例没有已导出的代表深度帧；Wild 场景也可能没有 GT。</div>
 <div id="inline-depth-content" hidden>
-  <div class="depth-row depth-row-reference">
+  <div class="depth-row depth-row-reference" aria-label="第一行：RGB 与 GT Depth">
     <article class="card"><h2>Input RGB</h2><img id="inline-rgb" alt="代表帧 RGB"></article>
     <article class="card"><h2>Filtered GT Depth</h2><img id="inline-gt" alt="过滤后 GT Depth"></article>
   </div>
-  <div class="depth-row depth-row-models">
+  <div class="depth-row depth-row-models" aria-label="第二行：四模型 Predicted Depth">
     <article class="card"><h2>Wat3R Depth</h2><img id="inline-wat3r" alt="Wat3R depth"></article>
     <article class="card"><h2>DA3 Depth</h2><img id="inline-da3" alt="DA3 depth"></article>
     <article class="card"><h2>Water-VGGT Depth</h2><img id="inline-watervggt" alt="Water-VGGT depth"></article>
