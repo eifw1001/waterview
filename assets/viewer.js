@@ -36,13 +36,15 @@
     return BENCH.metrics?.[model]?.[key] || null;
   }
   function finite(value) { return typeof value === 'number' && Number.isFinite(value); }
-  function renderCurrentGt(current, currentFrame) {
+  function renderSceneGt(current) {
     const key = current.sid || current.id;
-    const item = (BENCH.gallery || []).find(candidate => candidate.scene === key && candidate.frame === currentFrame + (current.sourceFrameOffset || 0));
+    const item = (BENCH.gallery || []).find(candidate => candidate.scene === key);
     $('gt-card').hidden = !item;
-    if (!item) return;
-    $('gtimg').src = item.gt; $('gtimg').alt = `${key} filtered geometric GT, frame ${currentFrame + 1}`;
-    $('gt-note').textContent = `valid ${(item.validCoverage * 100).toFixed(1)}% · geometric`;
+    if (!item) { $('gtimg').removeAttribute('src'); return; }
+    $('gtimg').src = item.gt;
+    $('gtimg').alt = `${key} 场景参考 GT，原始帧 ${item.instance}`;
+    $('gt-note').textContent = `参考帧 ${item.instance} · 有效 ${(item.validCoverage * 100).toFixed(1)}%`;
+    $('gt-reference-note').textContent = '该场景的过滤后 GT 代表帧，播放时固定显示；不随当前输入帧变化。';
   }
   function caseRank(model, task, current) {
     const key = current.sid || current.id;
@@ -355,7 +357,6 @@
         image.alt = scene.title + '，第 ' + (frame + 1) + ' 帧';
         image.dataset.frame = String(frame);
         $('fimg').replaceWith(image);
-        renderCurrentGt(selected, frame);
         // Match the projection viewport to the actual input frame. Water3D
         // scenes do not all have the same aspect ratio.
         MODELS.forEach(m => {
@@ -396,6 +397,7 @@
       });
       $('tags').textContent = scene.tags;
       renderSceneEvidence();
+      renderSceneGt(scene);
       const hasHd = MODELS.every(m => scene.bins[m]?.hdPath && scene.bins[m]?.hdCounts);
       $('hd').disabled = !hasHd;
       $('hd-note').textContent = hasHd ? '高清模式：按当前场景/帧加载已导出的高密度真实点；抽样和置信度规则与预览一致。' : '当前案例没有已导出的高清数据，保持 8,000 点/帧预览；不会通过增大点尺寸伪造细节。';
