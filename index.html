@@ -1,6 +1,6 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · 汇报首页</title><link rel="stylesheet" href="assets/viewer.css?v=13"><script defer src="assets/benchmark.js?v=2"></script><script defer src="assets/reports.js?v=3"></script></head><body>
 <header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div><h1>水下三维重建 · 方法与定量结果</h1><p class="sub">方法为什么适合水下 → 指标在测什么 → 实际跑出来怎样。</p></header>
-<nav class="site-nav" aria-label="页面导航"><a href="index.html" aria-current="page">汇报首页</a><a href="viewer.html">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a></nav>
+<nav class="site-nav" aria-label="页面导航"><a href="index.html" aria-current="page">汇报首页</a><a href="viewer.html">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a><a href="discussion.html">讨论问题</a></nav>
 <main>
 <section class="panel method-overview compact-methods" aria-label="Method Overview">
 <div class="section-kicker">METHOD OVERVIEW</div>
@@ -16,5 +16,12 @@
 <div class="metric-meaning"><span><strong>Pose</strong>：相机轨迹 / 位姿估计是否准确</span><span><strong>Depth</strong>：逐像素深度预测是否准确</span><span><strong>Point Cloud</strong>：最终三维几何是否与 GT 对齐、完整</span></div>
 <div id="metric-explanation" class="metric-explanation"></div><div id="metrics-table-wrap" class="table-wrap"></div><p class="footnote">↑ 越大越好，↓ 越小越好。Pose / Depth / Point Cloud 分开统计；点云 CD 使用 point.overall。</p></section>
 
+<section class="overview panel compact-benchmark" aria-label="Benchmark 信息">
+  <div class="section-kicker">BENCHMARK INFORMATION</div>
+  <div class="section-heading"><div><h2>Water3D / Wat3R real-world benchmark</h2><p>这里的四模型数字均按同一套本地评测协议汇总，用于横向比较；并非四篇论文各自报告的官方表格。</p></div><span class="local-badge">LOCAL EVALUATION</span></div>
+  <div id="benchmark-stats" class="stat-grid"></div>
+  <div id="protocol-note" class="protocol-note"></div>
+  <details class="scene-details"><summary>展开逐 Scene：序列长度与分辨率</summary><div id="scene-table" class="table-wrap"></div></details>
+</section>
 
 </main><footer>WaterView · COLMAP 参考深度，无物理绝对尺度</footer></body></html>
