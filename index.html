@@ -2,20 +2,19 @@
 <header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div><h1>水下三维重建 · 方法与定量结果</h1><p class="sub">方法为什么适合水下 → 指标在测什么 → 实际跑出来怎样。</p></header>
 <nav class="site-nav" aria-label="页面导航"><a href="index.html" aria-current="page">汇报首页</a><a href="viewer.html">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a></nav>
 <main>
-<section class="panel method-overview" aria-label="Method Overview">
-<div class="section-kicker">01 / METHOD OVERVIEW</div>
-<div class="section-heading"><div><h2>两条 underwater adaptation 路线</h2><p>这里先讲到能看懂结果为止，不把首页变成论文阅读页。</p></div></div>
+<section class="panel method-overview compact-methods" aria-label="Method Overview">
+<div class="section-kicker">METHOD OVERVIEW</div>
+<div class="section-heading"><div><h2>为什么这两类方法适合水下？</h2><p>只保留汇报需要的核心差异，下面马上进入实跑结果。</p></div></div>
 <div class="method-grid">
-<article class="method-card"><div class="method-tag">Wat3R</div><h3>从真实无标注水下视频中“学会适应水下”</h3><p>Wat3R 使用 teacher–student 跨域半监督学习，把大量没有 3D 标注的真实水下视频用于域适应；cross-view consistency 再利用其他视角的几何约束，弥补衰减、散射和低纹理造成的信息损失。</p><p class="method-summary"><strong>一句话：</strong>真实水下视频 + 跨视角几何一致性，让通用 3D 模型迁移到水下域。</p><a href="https://github.com/LSXI7/Wat3R" target="_blank" rel="noreferrer">Wat3R project ↗</a></article>
-<article class="method-card"><div class="method-tag">Water-VGGT / WCV</div><h3>把“现在是什么水况”显式告诉模型</h3><p><strong>WCV = Water Condition Vector</strong>，用于表示与折射、可见度、散射以及光谱 / 波长衰减相关的水下条件。论文方法把 condition embedding 注入 Transformer，使几何推理能随水况变化。</p><p class="method-summary"><strong>一句话：</strong>Wat3R 主要让模型从水下数据中适应；Water-VGGT 则显式告诉模型当前水况。</p><a href="https://www.sciencedirect.com/science/article/abs/pii/S0029801826028787" target="_blank" rel="noreferrer">Water-VGGT paper ↗</a></article>
+<article class="method-card"><div class="method-tag">Wat3R</div><h3>让模型从真实水下视频中学会适应水下域</h3><p>通过 <b>teacher–student 跨域半监督学习</b>利用大量没有 3D 标注的真实水下视频，再用 <b>cross-view consistency</b> 从其他视角补充当前视角因散射、衰减、低纹理而损失的几何信息。</p><p class="method-summary"><strong>汇报一句话：</strong>真实水下视频 + 跨视角一致性，把通用 3D 模型迁移到水下。</p></article>
+<article class="method-card"><div class="method-tag">Water-VGGT / WCV</div><h3>把“现在是什么水况”显式告诉几何模型</h3><p><b>WCV = Water Condition Vector（水体条件向量）</b>，用于描述折射、能见度、散射和波长相关衰减等水下成像条件；论文方法把 condition embedding 注入 Transformer，让特征交互和几何推理随水况调整。</p><p class="method-summary"><strong>汇报一句话：</strong>Wat3R 是“从水下数据里适应”，Water-VGGT 是“把水况显式注入推理”。</p></article>
 </div>
-<div class="implementation-warning"><strong>注意：</strong>本站 <b>Water-VGGT+WCV</b> 是本地“先 WCV 增强、再喂 VGGT”的实验实现，不等于论文中将 WCV condition embedding 注入 Transformer 的完整 Water-VGGT。</div>
+<div class="implementation-warning"><strong>注意：</strong>本站的 <b>Water-VGGT+WCV</b> 是本地“先做 WCV 条件增强，再送入 VGGT”的实验分支，<b>不等于论文完整 Water-VGGT</b>。</div>
 </section>
 
-<section class="panel metrics-panel" aria-label="定量结果"><div class="section-kicker">02 / QUANTITATIVE RESULTS</div><div class="section-heading"><div><h2>四模型定量结果</h2><p>第一名加粗、第二名下划线；排名按未舍入值和指标方向计算，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>
+<section class="panel metrics-panel" aria-label="定量结果"><div class="section-kicker">QUANTITATIVE RESULTS</div><div class="section-heading"><div><h2>四模型定量结果</h2><p>第一名加粗、第二名下划线；排名按未舍入值和指标方向计算，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>
 <div class="metric-meaning"><span><strong>Pose</strong>：相机轨迹 / 位姿估计是否准确</span><span><strong>Depth</strong>：逐像素深度预测是否准确</span><span><strong>Point Cloud</strong>：最终三维几何是否与 GT 对齐、完整</span></div>
 <div id="metric-explanation" class="metric-explanation"></div><div id="metrics-table-wrap" class="table-wrap"></div><p class="footnote">↑ 越大越好，↓ 越小越好。Pose / Depth / Point Cloud 分开统计；点云 CD 使用 point.overall。</p></section>
 
-<section class="overview panel" aria-label="Benchmark 概况"><div class="section-kicker">03 / BENCHMARK INFORMATION</div><div class="section-heading"><div><h2>评测范围</h2><p>Water3D 的 42 个 scene / sequence 使用各自 common_frames；网页播放器只列出已导出的可交互场景。</p></div><span class="local-badge">LOCAL EVALUATION</span></div><div id="benchmark-stats" class="stat-grid"></div><div id="protocol-note" class="protocol-note"></div></section>
-<section class="panel"><h2>逐场景数据概况</h2><div id="scene-table" class="table-wrap"></div></section>
+
 </main><footer>WaterView · COLMAP 参考深度，无物理绝对尺度</footer></body></html>
