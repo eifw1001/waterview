@@ -8,7 +8,7 @@ function render(){
  const item=items[+$('depth-scene').value];
  $('depth-note').textContent=`${item.note} · 原始帧 ${item.instance} · GT 有效覆盖 ${(item.validCoverage*100).toFixed(1)}% · 色图范围 ${item.scale.join('–')}（COLMAP 相对尺度）`;
  const available=bench.resourceScenes.includes(item.scene);
- $('cloud-link').hidden=!available;$('cloud-link').href='index.html#'+encodeURIComponent(item.scene);
+ $('cloud-link').hidden=!available;$('cloud-link').href='viewer.html#'+encodeURIComponent(item.scene);
  const values=Object.keys(item.predictions).map(m=>bench.metrics[m]?.[item.scene]?.depth?.abs_rel).filter(Number.isFinite);
  const ranks=[...new Set(values)].sort((a,b)=>a-b);
  const panels=[{name:'RGB',url:item.rgb},{name:'Filtered GT',url:item.gt},...Object.entries(item.predictions).map(([m,url])=>{
