@@ -4,7 +4,7 @@
 <main>
 <section class="panel method-overview compact-methods" aria-label="Method Overview">
 <div class="section-kicker">METHOD OVERVIEW</div>
-<div class="section-heading"><div><h2>两种方法的核心机制</h2><p>从论文方法本身出发，概括它们如何处理水下三维重建。</p></div></div>
+<div class="section-heading"><div><h2>两种方法的核心机制</h2></div></div>
 <div class="method-grid">
 <article class="method-card"><div class="method-tag">Wat3R</div><h3>VGGT + Mean Teacher 半监督适配</h3><ul class="method-points"><li><b>Base：</b>VGGT</li><li><b>训练：</b>合成水下有标注数据 + 真实无标注视频</li><li><b>学习方式：</b>Teacher–Student 伪标签</li><li><b>约束：</b>Cross-view Consistency</li></ul><p class="method-summary"><strong>核心定位：</strong>把预训练 VGGT 适配到真实水下域。</p></article>
 <article class="method-card"><div class="method-tag">Water-VGGT</div><h3>把当前水况注入 VGGT 的几何推理</h3><ul class="method-points"><li><b>Base：</b>VGGT</li><li><b>条件表示：</b>WCV 显式表示水体条件</li><li><b>注入方式：</b>FiLM + Conditional Attention Bias → Transformer</li><li><b>预测模块：</b>Camera / Dense Geometry / Tracking Heads</li></ul><p class="method-summary"><strong>核心定位：</strong>让模型根据当前水况调整几何推理。</p></article>
@@ -17,7 +17,7 @@
 <div class="wcv-flow" aria-label="WCV processing flow"><span>RGB</span><b>→</b><span>WCV Estimator</span><b>→</b><span>WCV</span><b>→</b><span>Condition Embedding</span><b>→</b><span>Transformer / Heads</span></div>
 </section>
 
-<section class="panel metrics-panel" aria-label="指标与定量结果"><div class="section-kicker">METRICS &amp; RESULTS</div><div class="section-heading"><div><h2>指标在测什么</h2><p>先看三类指标的含义，再查看同一评测协议下的结果。</p></div></div>
+<section class="panel metrics-panel" aria-label="指标与定量结果"><div class="section-kicker">METRICS &amp; RESULTS</div><div class="section-heading"><div><h2>指标在测什么</h2></div></div>
 <div class="metric-meaning"><span><strong>Pose</strong>：相机位姿是否准确</span><span><strong>Depth</strong>：逐像素深度是否准确</span><span><strong>Point Cloud</strong>：最终三维几何是否准确、完整</span></div>
 <div class="results-heading"><div><h3>三组定量结果</h3><p>按未舍入原始值排名；依据每个指标的 ↑ / ↓ 方向判断，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>
 <div class="ranking-legend" aria-label="排名样式说明"><span class="rank-legend-best">第一名</span><span class="rank-legend-second">第二名</span><span>其他结果保持普通样式</span></div>
@@ -25,7 +25,7 @@
 
 <section class="overview panel compact-benchmark" aria-label="Benchmark 信息">
   <div class="section-kicker">BENCHMARK INFORMATION</div>
-  <div class="section-heading"><div><h2>Water3D / Wat3R real-world benchmark</h2><p>这里的四模型数字均按同一套本地评测协议汇总，用于横向比较；并非四篇论文各自报告的官方表格。</p></div><span class="local-badge">LOCAL EVALUATION</span></div>
+  <div class="section-heading"><div><h2>Water3D / Wat3R real-world benchmark</h2><p>四模型数字按同一套本地评测协议汇总；不等同于四篇论文各自报告的官方表格。</p></div><span class="local-badge">LOCAL EVALUATION</span></div>
   <div id="benchmark-stats" class="stat-grid"></div>
   <div id="protocol-note" class="protocol-note"></div>
   <details class="scene-details"><summary>展开逐 Scene：序列长度与分辨率</summary><div id="scene-table" class="table-wrap"></div></details>
