@@ -251,7 +251,8 @@
       const min = new THREE.Vector3(Infinity, Infinity, Infinity);
       const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
       let found = false;
-      MODELS.forEach(model => {
+      const fitModels = scene.id === 'creature_03' ? ['wat3r'] : MODELS;
+      fitModels.forEach(model => {
         const p = panels[model];
         if (!p.data || !p.count) return;
         const xyz = new Float32Array(p.data, 0, p.count * 3);
@@ -267,7 +268,11 @@
       const target = min.clone().add(max).multiplyScalar(0.5);
       const radius = Math.max(0.01, min.distanceTo(max) * 0.5);
       const az = -Math.PI / 6, el = Math.PI / 7;
-      const d = Math.max(0.65, Math.min(15, radius / Math.tan(50 * Math.PI / 360) * 1.25));
+      const minDistance = scene.id === 'creature_03' ? 0.08 : 0.65;
+      const d = Math.max(
+        minDistance,
+        Math.min(15, radius / Math.tan(50 * Math.PI / 360) * 1.25)
+      );
       syncing = true;
       MODELS.forEach(model => {
         const p = panels[model];
@@ -483,6 +488,9 @@
     }
     function loadScene(selected, initialFrame = 0) {
       stop(); cancelPrefetch(); scene = selected; frame = 0; pendingFrame = 0;
+      MODELS.forEach(model => {
+        panels[model].controls.minDistance = scene.id === 'creature_03' ? 0.05 : 0.6;
+      });
       needsAutoFit = !scene.cams;
       const blank = new Image();
       blank.id = 'fimg'; blank.alt = '正在加载输入帧';
