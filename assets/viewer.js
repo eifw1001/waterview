@@ -10,9 +10,10 @@
   const cache = new Map();
   const CACHE_FRAMES = 288; // Two full 32-frame scenes = 256 model-frames (~32 MiB).
   const imageCache = new Map();
+  const aggregateCache = new Map();
   const IMAGE_CACHE_FRAMES = 48;
   let scene, frame = 0, pendingFrame = 0, confidence = 100, playing = false, loading = false;
-  let hdEnabled = false, layout = 'four', focusModel = 'wat3r', caseTask = 'point', caseQuality = 'good';
+  let hdEnabled = false, allFramesEnabled = false, layout = 'four', focusModel = 'wat3r', caseTask = 'point', caseQuality = 'good';
   let needsAutoFit = false;
   let snap = false; // 吸附到当前帧相机位姿（有 cams 数据的场景默认开启）
   let requestId = 0, controller, timer, dirty = true, syncing = false;
@@ -232,7 +233,7 @@
       syncing = false; dirty = true;
     }
     function resetView() {
-      if (!scene?.cams && panels[MODELS[0]]?.data) {
+      if ((allFramesEnabled || !scene?.cams) && panels[MODELS[0]]?.data) {
         fitView();
         return;
       }
@@ -402,6 +403,45 @@
         return getFrame(meta.url, meta.count, signal);
       }));
     }
+    function aggregateKey(current) { return `${current.id}:${hdEnabled ? 'hd' : 'preview'}`; }
+    async function dataForAllFrames(current, signal, onProgress = null) {
+      const key = aggregateKey(current);
+      const cached = aggregateCache.get(key);
+      if (cached) return cached;
+      const frameData = new Array(current.nf);
+      let cursor = 0, done = 0;
+      async function worker() {
+        while (cursor < current.nf && !signal.aborted) {
+          const next = cursor++;
+          frameData[next] = await dataFor(current, next, signal);
+          done++;
+          if (onProgress) onProgress(done, current.nf);
+        }
+      }
+      await Promise.all([worker(), worker()]);
+      if (signal.aborted) throw new DOMException('已取消加载', 'AbortError');
+      const aggregate = MODELS.map((model, modelIndex) => {
+        const counts = frameData.map((data, frameIndex) => frameMeta(current, model, frameIndex).count);
+        const total = counts.reduce((sum, count) => sum + count, 0);
+        const buffer = new ArrayBuffer(total * 16);
+        const xyz = new Float32Array(buffer, 0, total * 3);
+        const rgb = new Uint8Array(buffer, total * 12, total * 3);
+        const ranks = new Uint8Array(buffer, total * 15, total);
+        let offset = 0;
+        frameData.forEach((data, frameIndex) => {
+          const count = counts[frameIndex], source = data[modelIndex];
+          xyz.set(new Float32Array(source, 0, count * 3), offset * 3);
+          rgb.set(new Uint8Array(source, count * 12, count * 3), offset * 3);
+          ranks.set(new Uint8Array(source, count * 15, count), offset);
+          offset += count;
+        });
+        return {data: buffer, count: total};
+      });
+      const result = {data: aggregate.map(item => item.data), counts: aggregate.map(item => item.count)};
+      aggregateCache.set(key, result);
+      while (aggregateCache.size > 2) aggregateCache.delete(aggregateCache.keys().next().value);
+      return result;
+    }
     function cancelPrefetch() {
       if (prefetchAbort) prefetchAbort.abort();
       prefetchAbort = null; prefetchScene = null;
@@ -450,7 +490,12 @@
       $('play').disabled = false;
       $('retry').hidden = true;
       $('status').textContent = '正在加载当前帧…';
-      const results = await Promise.allSettled([dataFor(selected, requestedFrame, signal), imageFor(selected, requestedFrame)]);
+      const pointData = allFramesEnabled
+        ? dataForAllFrames(selected, signal, (done, total) => {
+            if (id === requestId) $('status').textContent = `正在合并全部帧 ${done} / ${total}…`;
+          })
+        : dataFor(selected, requestedFrame, signal);
+      const results = await Promise.allSettled([pointData, imageFor(selected, requestedFrame)]);
       if (id !== requestId) return;
       loading = false;
       const failure = results.find(result => result.status === 'rejected');
@@ -473,12 +518,15 @@
         });
         resize();
         MODELS.forEach((m, i) => {
-          panels[m].data = data[i]; panels[m].count = requestedMeta[i].count; drawFrame(m);
+          panels[m].data = allFramesEnabled ? data.data[i] : data[i];
+          panels[m].count = allFramesEnabled ? data.counts[i] : requestedMeta[i].count;
+          drawFrame(m);
           panels[m].renderer.domElement.dataset.frame = String(frame);
         });
-        $('play').disabled = false; $('status').textContent = '四模型当前帧已就绪';
+        $('play').disabled = false; $('status').textContent = allFramesEnabled ? '四模型全部帧已合并' : '四模型当前帧已就绪';
         renderDepthEvidence(frame);
-        if (snap) applyCams(requestedFrame);
+        if (allFramesEnabled) fitView();
+        else if (snap) applyCams(requestedFrame);
         else if (needsAutoFit) { fitView(); needsAutoFit = false; }
         const now = performance.now(), interval = 1000 / +$('fps').value;
         lastAdvance = playing && lastAdvance ? Math.max(lastAdvance + interval, now - interval) : now;
@@ -557,6 +605,10 @@
       const hasHd = scene && MODELS.every(m => scene.bins[m]?.hdPath && scene.bins[m]?.hdCounts);
       hdEnabled = !!$('hd').checked && hasHd;
       if (!hasHd) { $('hd').checked = false; $('hd-note').textContent = '当前案例没有高密度导出，保持预览点云。'; return; }
+      stop(); cancelPrefetch(); requestFrame(frame);
+    };
+    $('all-frames').onchange = () => {
+      allFramesEnabled = $('all-frames').checked;
       stop(); cancelPrefetch(); requestFrame(frame);
     };
     $('psz').oninput = () => {
