@@ -50,6 +50,23 @@ const MODEL_LABELS=BENCH.models;
     if ($('metric-explanation')) $('metric-explanation').innerHTML = explanation[kind];
     document.querySelectorAll('.metric-tab').forEach(tab => tab.onclick = () => renderMetricTable(tab.dataset.metric));
   }
+  const sceneScoreSpec = {
+    pose: {title: 'Pose · AUC@30', group: 'pose', field: 'auc30', direction: '↑', higher: true},
+    depth: {title: 'Depth · AbsRel', group: 'depth', field: 'abs_rel', direction: '↓', higher: false},
+    point: {title: 'Point Cloud · CD / Chamfer', group: 'point', field: 'overall', direction: '↓', higher: false}
+  };
+  function renderSceneScoreTable(kind = 'depth') {
+    const spec = sceneScoreSpec[kind];
+    const sceneIds = Object.keys(BENCH.commonFrames || BENCH.sceneStats || {});
+    const rows = sceneIds.map(scene => ({scene, values: MODELS.map(model => BENCH.metrics?.[model]?.[scene]?.[spec.group]?.[spec.field])}));
+    $('scene-score-tabs').innerHTML = Object.entries(sceneScoreSpec).map(([key, value]) => `<button class="scene-score-tab${key === kind ? ' active' : ''}" data-scene-score="${key}" role="tab" aria-selected="${key === kind}">${value.title}</button>`).join('');
+    $('scene-score-table').innerHTML = `<table class="metric-table scene-score-table"><thead><tr><th>Scene · ${spec.title}</th>${MODELS.map(model => `<th>${esc(MODEL_LABELS[model])}<br><small>scene mean ${spec.direction}</small></th>`).join('')}</tr></thead><tbody>${rows.map(row => {
+      const ordered = row.values.filter(finite).sort((a, b) => spec.higher ? b - a : a - b);
+      const ranks = [...new Set(ordered)];
+      return `<tr><td>${esc(row.scene)}</td>${row.values.map(value => { const rank = finite(value) ? ranks.indexOf(value) : -1; return `<td class="${rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : ''}">${finite(value) ? value.toFixed(4) : '—'}</td>`; }).join('')}</tr>`;
+    }).join('')}</tbody></table>`;
+    document.querySelectorAll('.scene-score-tab').forEach(tab => tab.onclick = () => renderSceneScoreTable(tab.dataset.sceneScore));
+  }
   function renderGallery() {
     const items = BENCH.gallery || [];
     $('gallery-count').textContent = items.length + ' representative frames';
@@ -60,6 +77,7 @@ if ($('metric-tabs') && $('metrics-table-wrap')) renderMetricTable();
 if ($('benchmark-stats')) {renderBenchmark();
  const res=v=>Array.isArray(v)?v.join(' × '):'—';
  if ($('scene-table')) $('scene-table').innerHTML='<table class="metric-table"><thead><tr><th>场景</th><th>原始帧数</th><th>评测帧数</th><th>原图</th><th>GT</th><th>VGGT 输入</th></tr></thead><tbody>'+Object.entries(BENCH.sceneStats).map(([id,s])=>`<tr><td>${esc(id)}</td><td>${s.originalFrames}</td><td>${s.evaluatedFrames}</td><td>${res(s.sourceResolution)}</td><td>${res(s.gtResolution)}</td><td>${res(s.inputResolution)}</td></tr>`).join('')+'</tbody></table>';
+ if ($('scene-score-tabs') && $('scene-score-table')) renderSceneScoreTable();
 }
 if ($('gt-gallery')) renderGallery();
 const dialog=document.createElement('dialog');dialog.className='image-dialog';dialog.innerHTML='<button aria-label="关闭大图">关闭</button><img alt="放大查看">';document.body.append(dialog);dialog.querySelector('button').onclick=()=>dialog.close();dialog.onclick=e=>{if(e.target===dialog)dialog.close()};

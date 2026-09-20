@@ -23,6 +23,8 @@ html{scroll-behavior:smooth;scroll-padding-top:12px}
 @media(max-width:1000px){.wcv-grid{grid-template-columns:1fr 1fr}.results-heading{display:block}.results-heading .metric-tabs{margin-top:10px}}
 @media(max-width:600px){.wcv-grid{grid-template-columns:1fr}.wcv-flow{justify-content:flex-start;gap:5px}.wcv-flow b{font-size:12px}}
 
+.scene-score-details{margin-top:12px}.scene-score-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:11px}.scene-score-tabs{display:flex;gap:6px;flex-wrap:wrap}.scene-score-tab{background:transparent;border:1px solid var(--line);border-radius:6px;color:var(--muted);padding:6px 10px;cursor:pointer;font:inherit}.scene-score-tab:hover,.scene-score-tab.active{background:#183b3e;border-color:#3a8f87;color:#b9fff3}.scene-score-table{margin-top:10px}.scene-score-table th:first-child,.scene-score-table td:first-child{min-width:180px}
+
 /* v14: PPT-like compact report + explicit two-row depth evidence */
 .compact-methods .method-grid{margin-top:10px}
 .compact-methods .method-card{padding:12px 14px}
