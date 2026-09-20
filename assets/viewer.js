@@ -13,6 +13,7 @@
   const IMAGE_CACHE_FRAMES = 48;
   let scene, frame = 0, pendingFrame = 0, confidence = 100, playing = false, loading = false;
   let hdEnabled = false, layout = 'four', focusModel = 'wat3r', caseTask = 'point', caseQuality = 'good';
+  let needsAutoFit = false;
   let snap = false; // 吸附到当前帧相机位姿（有 cams 数据的场景默认开启）
   let requestId = 0, controller, timer, dirty = true, syncing = false;
   let lastAdvance = 0, buffering = false, playbackEpoch = 0;
@@ -231,6 +232,10 @@
       syncing = false; dirty = true;
     }
     function resetView() {
+      if (!scene?.cams && panels[MODELS[0]]?.data) {
+        fitView();
+        return;
+      }
       syncing = true;
       MODELS.forEach(m => {
         const p = panels[m], az = -Math.PI / 6, el = Math.PI / 7, d = 2.6;
@@ -239,6 +244,42 @@
         p.camera.up.set(0, 0, 1);
         p.camera.fov = 50; p.camera.updateProjectionMatrix();
         p.camera.lookAt(0, 0, 0); p.controls.update();
+      });
+      syncing = false; dirty = true;
+    }
+    function fitView() {
+      const min = new THREE.Vector3(Infinity, Infinity, Infinity);
+      const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+      let found = false;
+      MODELS.forEach(model => {
+        const p = panels[model];
+        if (!p.data || !p.count) return;
+        const xyz = new Float32Array(p.data, 0, p.count * 3);
+        for (let i = 0; i < xyz.length; i += 3) {
+          const x = xyz[i], y = xyz[i + 1], z = xyz[i + 2];
+          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+          min.x = Math.min(min.x, x); min.y = Math.min(min.y, y); min.z = Math.min(min.z, z);
+          max.x = Math.max(max.x, x); max.y = Math.max(max.y, y); max.z = Math.max(max.z, z);
+          found = true;
+        }
+      });
+      if (!found) return;
+      const target = min.clone().add(max).multiplyScalar(0.5);
+      const radius = Math.max(0.01, min.distanceTo(max) * 0.5);
+      const az = -Math.PI / 6, el = Math.PI / 7;
+      const d = Math.max(0.65, Math.min(15, radius / Math.tan(50 * Math.PI / 360) * 1.25));
+      syncing = true;
+      MODELS.forEach(model => {
+        const p = panels[model];
+        p.controls.target.copy(target);
+        p.camera.position.set(
+          target.x + d * Math.cos(el) * Math.cos(az),
+          target.y + d * Math.cos(el) * Math.sin(az),
+          target.z + d * Math.sin(el)
+        );
+        p.camera.up.set(0, 0, 1);
+        p.camera.fov = 50; p.camera.updateProjectionMatrix();
+        p.camera.lookAt(target); p.controls.update();
       });
       syncing = false; dirty = true;
     }
@@ -433,6 +474,7 @@
         $('play').disabled = false; $('status').textContent = '四模型当前帧已就绪';
         renderDepthEvidence(frame);
         if (snap) applyCams(requestedFrame);
+        else if (needsAutoFit) { fitView(); needsAutoFit = false; }
         const now = performance.now(), interval = 1000 / +$('fps').value;
         lastAdvance = playing && lastAdvance ? Math.max(lastAdvance + interval, now - interval) : now;
         if (!playing || $('buffer-mode').value === 'stream') warmAhead(selected, frame).catch(() => {});
@@ -441,6 +483,7 @@
     }
     function loadScene(selected, initialFrame = 0) {
       stop(); cancelPrefetch(); scene = selected; frame = 0; pendingFrame = 0;
+      needsAutoFit = !scene.cams;
       const blank = new Image();
       blank.id = 'fimg'; blank.alt = '正在加载输入帧';
       $('fimg').replaceWith(blank);
