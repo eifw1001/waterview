@@ -14,3 +14,18 @@ html{scroll-behavior:smooth;scroll-padding-top:12px}
 .discussion-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.discussion-grid article{background:#0d151f;border:1px solid var(--line);border-radius:10px;padding:15px}.discussion-grid span{font-size:10px;letter-spacing:1.2px;color:var(--accent)}.discussion-grid h3{font-size:15px;line-height:1.45;margin:8px 0}.discussion-grid p{color:var(--muted);font-size:12px;line-height:1.7;margin:0}
 @media(max-width:1000px){.method-grid,.discussion-grid{grid-template-columns:1fr}.evidence-flow,.depth-model-row{grid-template-columns:repeat(2,minmax(0,1fr))}.metric-meaning{grid-template-columns:1fr}}
 @media(max-width:600px){.evidence-flow,.depth-model-row,.depth-reference-row{grid-template-columns:1fr}}
+
+/* v14: PPT-like compact report + explicit two-row depth evidence */
+.compact-methods .method-grid{margin-top:10px}
+.compact-methods .method-card{padding:12px 14px}
+.compact-methods .method-card h3{font-size:14px;margin:6px 0}
+.compact-methods .method-card p{font-size:12px;line-height:1.55;margin:5px 0}
+.compact-methods .method-summary{padding:7px 9px}
+.inline-depth{margin-top:14px}
+.depth-row{display:grid;gap:12px;margin-top:12px}
+.depth-row-reference{grid-template-columns:repeat(2,minmax(0,1fr))}
+.depth-row-models{grid-template-columns:repeat(4,minmax(0,1fr))}
+.depth-row .card img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#090e15}
+.link-button{display:inline-flex;align-items:center;text-decoration:none;padding:8px 12px;border:1px solid var(--line);border-radius:6px}
+@media(max-width:1000px){.depth-row-models{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.depth-row-reference,.depth-row-models{grid-template-columns:1fr}}
