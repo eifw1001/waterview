@@ -56,7 +56,8 @@ const MODEL_LABELS=BENCH.models;
     $('gt-gallery').innerHTML = items.map(item => `<article class="gallery-card"><div class="gallery-images"><img loading="lazy" src="${esc(item.rgb)}" alt="${esc(item.scene)} RGB frame ${item.frame}"><img loading="lazy" src="${esc(item.gt)}" alt="${esc(item.scene)} filtered geometric GT depth frame ${item.frame}"></div><div class="gallery-caption"><strong>${esc(item.scene)} · frame ${item.frame + 1}</strong><span>${esc(item.note)} · ${esc(item.instance)}</span><span>${esc(item.label)} · valid ${(item.validCoverage * 100).toFixed(1)}% · range ${item.scale[0]}–${item.scale[1]}</span></div></article>`).join('');
   }
 
-if ($('benchmark-stats')) {renderBenchmark(); renderMetricTable();
+if ($('metric-tabs') && $('metrics-table-wrap')) renderMetricTable();
+if ($('benchmark-stats')) {renderBenchmark();
  const res=v=>Array.isArray(v)?v.join(' × '):'—';
  if ($('scene-table')) $('scene-table').innerHTML='<table class="metric-table"><thead><tr><th>场景</th><th>原始帧数</th><th>评测帧数</th><th>原图</th><th>GT</th><th>Water-VGGT 输入</th></tr></thead><tbody>'+Object.entries(BENCH.sceneStats).map(([id,s])=>`<tr><td>${esc(id)}</td><td>${s.originalFrames}</td><td>${s.evaluatedFrames}</td><td>${res(s.sourceResolution)}</td><td>${res(s.gtResolution)}</td><td>${res(s.inputResolution)}</td></tr>`).join('')+'</tbody></table>';
 }
