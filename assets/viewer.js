@@ -11,10 +11,10 @@
   const imageCache = new Map();
   const IMAGE_CACHE_FRAMES = 48;
   let scene, frame = 0, pendingFrame = 0, confidence = 100, playing = false, loading = false;
-  let hdEnabled = false, layout = 'four', focusModel = 'wat3r', caseTask = 'depth', caseQuality = 'good';
+  let hdEnabled = false, layout = 'four', focusModel = 'wat3r', caseTask = 'point', caseQuality = 'good';
   let snap = false; // 吸附到当前帧相机位姿（有 cams 数据的场景默认开启）
   let requestId = 0, controller, timer, dirty = true, syncing = false;
-  let lastAdvance = 0;
+  let lastAdvance = 0, buffering = false, playbackEpoch = 0;
   let lastTime = performance.now();
   let prefetchAbort = null, prefetchScene = null;
   const inflight = new Map();
@@ -24,6 +24,7 @@
     MODELS.forEach(m => { $('ld_' + m).textContent = error.message; });
     console.error(error);
   }
+  try {
   const esc = value => String(value).replace(/[&<>\"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));
   const metricSpec = {
     pose: {title: 'Pose', fields: [['auc30', 'AUC@30', '↑', true], ['auc15', 'AUC@15', '↑', true], ['auc05', 'AUC@5', '↑', true]]},
@@ -35,43 +36,9 @@
     return BENCH.metrics?.[model]?.[key] || null;
   }
   function finite(value) { return typeof value === 'number' && Number.isFinite(value); }
-  function renderBenchmark() {
-    const stats = Object.values(BENCH.sceneStats || {});
-    const evaluated = stats.map(x => x.evaluatedFrames).filter(Number.isFinite);
-    const original = stats.map(x => x.originalFrames).filter(Number.isFinite);
-    const exported = (BENCH.resourceScenes || []).length;
-    const range = values => values.length ? Math.min(...values) + '–' + Math.max(...values) : '—';
-    $('benchmark-stats').innerHTML = [
-      ['42', 'Water3D scenes / sequences'],
-      [exported, '网页可交互资源（含 Wild）'],
-      [range(original), '原始帧数 / scene'],
-      [range(evaluated), '实际评测帧数 / scene'],
-      ['518 px', '评测 GT 短边 / 模型输入基准']
-    ].map(([value, label]) => `<div class="stat"><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`).join('');
-    $('protocol-note').textContent = BENCH.protocol?.summary + ' ' + BENCH.protocol?.scope + ' ' + BENCH.protocol?.input;
-  }
-  function renderMetricTable(kind = 'depth') {
-    const spec = metricSpec[kind];
-    const rows = MODELS.map(model => {
-      const entries = Object.values(BENCH.metrics?.[model] || {});
-      return {model, values: spec.fields.map(([key]) => {
-        const values = entries.map(entry => entry[kind]?.[key]).filter(finite);
-        return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
-      })};
-    });
-    $('metric-tabs').innerHTML = Object.entries(metricSpec).map(([key, value]) => `<button class="metric-tab${key === kind ? ' active' : ''}" data-metric="${key}" role="tab" aria-selected="${key === kind}">${value.title}</button>`).join('');
-    const ranks = spec.fields.map(([, , , higher], index) => rows.map(row => ({row, value: row.values[index]})).filter(x => finite(x.value)).sort((a, b) => higher ? b.value - a.value : a.value - b.value).map(x => x.row.model));
-    $('metrics-table-wrap').innerHTML = `<table class="metric-table"><thead><tr><th>model · ${spec.title}</th>${spec.fields.map(([, label, dir]) => `<th>${label} ${dir}<br><small>scene mean</small></th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr><td>${esc(MODEL_LABELS[row.model])}</td>${row.values.map((value, index) => { const rank = ranks[index].indexOf(row.model); return `<td class="${rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : ''}">${finite(value) ? value.toFixed(4) : '—'}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
-    document.querySelectorAll('.metric-tab').forEach(tab => tab.onclick = () => renderMetricTable(tab.dataset.metric));
-  }
-  function renderGallery() {
-    const items = BENCH.gallery || [];
-    $('gallery-count').textContent = items.length + ' representative frames';
-    $('gt-gallery').innerHTML = items.map(item => `<article class="gallery-card"><div class="gallery-images"><img loading="lazy" src="${esc(item.rgb)}" alt="${esc(item.scene)} RGB frame ${item.frame}"><img loading="lazy" src="${esc(item.gt)}" alt="${esc(item.scene)} filtered geometric GT depth frame ${item.frame}"></div><div class="gallery-caption"><strong>${esc(item.scene)} · frame ${item.frame + 1}</strong><span>${esc(item.note)} · ${esc(item.instance)}</span><span>${esc(item.label)} · valid ${(item.validCoverage * 100).toFixed(1)}% · range ${item.scale[0]}–${item.scale[1]}</span></div></article>`).join('');
-  }
   function renderCurrentGt(current, currentFrame) {
     const key = current.sid || current.id;
-    const item = (BENCH.gallery || []).find(candidate => candidate.scene === key && candidate.frame === currentFrame);
+    const item = (BENCH.gallery || []).find(candidate => candidate.scene === key && candidate.frame === currentFrame + (current.sourceFrameOffset || 0));
     $('gt-card').hidden = !item;
     if (!item) return;
     $('gtimg').src = item.gt; $('gtimg').alt = `${key} filtered geometric GT, frame ${currentFrame + 1}`;
@@ -96,7 +63,9 @@
       if (isWild || !metricEntry(model)) { box.innerHTML = '<span class="score-label">准确度</span>无 GT，暂无准确度分数'; return; }
       const entry = metricEntry(model), rank = ranked.findIndex(x => x.model === model);
       const value = entry[caseTask]?.[primary[0]];
-      const cls = rank === 0 ? 'strong' : rank === 1 ? 'under' : '';
+      const unique = [...new Set(ranked.map(x => x.entry[caseTask][primary[0]]))];
+      const distinctRank = unique.indexOf(value);
+      const cls = distinctRank === 0 ? 'strong' : distinctRank === 1 ? 'under' : '';
       const detail = spec.fields.slice(1).map(([field, label, dir]) => finite(entry[caseTask]?.[field]) ? `${label}${dir} ${entry[caseTask][field].toFixed(4)}` : `${label}${dir} —`).join(' · ');
       box.innerHTML = `<span class="score-label">${primary[1]}${primary[2]}</span><span class="${cls}">${finite(value) ? value.toFixed(6) : '—'}</span><span class="score-scope">场景平均 · ${detail}</span>`;
     });
@@ -130,24 +99,22 @@
     loadScene(list[0]);
   }
   function setupPageMeta() {
-    renderBenchmark(); renderMetricTable('depth'); renderGallery();
     $('layout').onchange = () => setLayout($('layout').value);
-    $('focus-method').onchange = () => { focusModel = $('focus-method').value; renderSceneEvidence(); setLayout(layout); if (scene && scene.group !== 'uveb' && caseQuality !== 'good') showRankedCases(); };
+    $('focus-method').onchange = () => { focusModel = $('focus-method').value; renderSceneEvidence(); setLayout(layout); if (scene && scene.group !== 'uveb') showRankedCases(); };
     $('case-task').onchange = () => { caseTask = $('case-task').value; renderSceneEvidence(); if (scene && scene.group !== 'uveb') showRankedCases(); };
     $('case-quality').onchange = () => {
       caseQuality = $('case-quality').value;
-      showRankedCases();
+      if (scene.group !== 'uveb') showRankedCases();
     };
     document.querySelectorAll('.quick').forEach(button => button.onclick = () => {
       const wanted = button.dataset.quick === 'gt_missing' ? 'video_7762649' : button.dataset.quick;
       const match = SCENES.find(s => s.id === wanted || s.sid === wanted);
       if (!match) return;
-      chooseGroup(match.group, match.id); document.querySelector('.selection').scrollIntoView({behavior: 'smooth', block: 'start'});
-      const focusFrame = match.focusFrame != null ? match.focusFrame : (button.dataset.quick === 'creature_15' ? 17 : button.dataset.quick === 'gt_missing' ? 22 : 18);
-      setTimeout(() => { $('frame').value = focusFrame; $('frame').dispatchEvent(new Event('input')); }, 250);
+      const focusFrame = match.focusFrame != null ? match.focusFrame : (button.dataset.quick === 'creature_15' ? 17 : button.dataset.quick === 'gt_missing' ? 22 - (match.sourceFrameOffset || 0) : 18);
+      chooseGroup(match.group, match.id, focusFrame);
+      document.querySelector('.selection').scrollIntoView({behavior: 'smooth', block: 'start'});
     });
   }
-  try {
     if (!window.THREE || !THREE.OrbitControls || !SCENES || !SCENES.length) {
       throw new Error('页面资源未加载完整，请刷新重试');
     }
@@ -173,7 +140,11 @@
       geometry.setDrawRange(0, 0);
       const material = new THREE.PointsMaterial({size: +$('psz').value / 700, map: texture,
         alphaTest: 0.5, vertexColors: true, sizeAttenuation: true});
-      world.add(new THREE.Points(geometry, material));
+      geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
+      geometry.attributes.color.setUsage(THREE.DynamicDrawUsage);
+      const cloud = new THREE.Points(geometry, material);
+      cloud.frustumCulled = false; // All points are displayed; no per-frame bounds scan.
+      world.add(cloud);
       panels[m] = {renderer, world, camera, controls, geometry, material, data: null, dragging: false};
       controls.addEventListener('start', () => { panels[m].dragging = true; });
       controls.addEventListener('end', () => { panels[m].dragging = false; });
@@ -255,38 +226,47 @@
       const xyz = new Float32Array(p.data, 0, n * 3);
       const rgb = new Uint8Array(p.data, n * 12, n * 3);
       const ranks = new Uint8Array(p.data, n * 15, n);
-      // Some exports already filtered low-confidence points. Select the requested
-      // fraction of the points actually present, including quantized-rank ties.
-      const histogram = new Uint32Array(256);
-      for (let i = 0; i < n; i++) histogram[ranks[i]]++;
-      let tiedBudget = Math.ceil(n * confidence / 100), threshold = 255;
-      while (threshold > 0 && tiedBudget > histogram[threshold]) {
-        tiedBudget -= histogram[threshold]; threshold--;
+      // Grow once if a high-density export exceeds the preview capacity.
+      if (p.geometry.attributes.position.count < n) {
+        p.geometry.dispose();
+        p.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3).setUsage(THREE.DynamicDrawUsage));
+        p.geometry.setAttribute('color', new THREE.BufferAttribute(new Uint8Array(n * 3), 3, true).setUsage(THREE.DynamicDrawUsage));
       }
       const positions = p.geometry.attributes.position.array;
       const colors = p.geometry.attributes.color.array;
       let shown = 0;
-      for (let i = 0; i < n && shown < positions.length / 3; i++) {
-        if (ranks[i] < threshold) continue;
-        if (ranks[i] === threshold) {
-          if (tiedBudget <= 0) continue;
-          tiedBudget--;
+      if (confidence === 100) {
+        // Bulk copies avoid creating tens of thousands of temporary subarrays.
+        positions.set(xyz); colors.set(rgb); shown = n;
+      } else {
+        const histogram = new Uint32Array(256);
+        for (let i = 0; i < n; i++) histogram[ranks[i]]++;
+        let tiedBudget = Math.ceil(n * confidence / 100), threshold = 255;
+        while (threshold > 0 && tiedBudget > histogram[threshold]) {
+          tiedBudget -= histogram[threshold]; threshold--;
         }
-        positions.set(xyz.subarray(i * 3, i * 3 + 3), shown * 3);
-        colors.set(rgb.subarray(i * 3, i * 3 + 3), shown * 3);
-        shown++;
+        for (let i = 0; i < n; i++) {
+          if (ranks[i] < threshold) continue;
+          if (ranks[i] === threshold && tiedBudget-- <= 0) continue;
+          const src = i * 3, dst = shown * 3;
+          for (let k = 0; k < 3; k++) {
+            positions[dst + k] = xyz[src + k]; colors[dst + k] = rgb[src + k];
+          }
+          shown++;
+        }
       }
-      p.geometry.attributes.position.needsUpdate = true;
-      p.geometry.attributes.color.needsUpdate = true;
+      for (const attr of [p.geometry.attributes.position, p.geometry.attributes.color]) {
+        attr.updateRange.offset = 0; attr.updateRange.count = shown * 3;
+        attr.needsUpdate = true;
+      }
       p.geometry.setDrawRange(0, shown);
-      p.geometry.computeBoundingSphere();
       $('count_' + model).textContent = shown.toLocaleString() + ' 点';
       $('ld_' + model).hidden = shown > 0;
       $('ld_' + model).textContent = '当前筛选下没有点';
       dirty = true;
     }
     function stop() {
-      playing = false; clearTimeout(timer); $('play').textContent = '▶ 播放';
+      playing = false; buffering = false; playbackEpoch++; clearTimeout(timer); $('play').textContent = '▶ 播放';
     }
     function imageFor(current, next) {
       const url = current.img + pad(next) + '.jpg';
@@ -311,27 +291,36 @@
         return getFrame(meta.url, meta.count, signal);
       }));
     }
-    // Keep only a small moving window ready. Fetching the entire scene at once
-    // competes with the frame being shown and makes a cold first play stutter.
-    function warmAhead(current, from, distance = 3) {
-      if (prefetchScene !== current.id) {
-        if (prefetchAbort) prefetchAbort.abort();
-        prefetchAbort = new AbortController(); prefetchScene = current.id;
-      }
-      const signal = prefetchAbort.signal;
-      const tasks = [];
-      for (let step = 1; step <= distance; step++) {
-        const next = (from + step) % current.nf;
-        tasks.push(dataFor(current, next, signal), imageFor(current, next));
-      }
-      return Promise.allSettled(tasks);
+    function cancelPrefetch() {
+      if (prefetchAbort) prefetchAbort.abort();
+      prefetchAbort = null; prefetchScene = null;
     }
-    function buffered(current, next) {
-      return MODELS.every(m => cache.has(frameMeta(current, m, next).url));
+    function prefetchSignal(current) {
+      const key = current.id + ':' + hdEnabled;
+      if (prefetchScene !== key) {
+        cancelPrefetch(); prefetchAbort = new AbortController(); prefetchScene = key;
+      }
+      return prefetchAbort.signal;
+    }
+    async function warmAhead(current, from, distance = 3, onProgress = null) {
+      const signal = prefetchSignal(current);
+      const total = Math.min(distance, current.nf - 1);
+      let cursor = 0, done = 0;
+      // Two frames in flight, rather than flooding the connection with a clip.
+      async function worker() {
+        while (cursor < total && !signal.aborted) {
+          const step = ++cursor, next = (from + step) % current.nf;
+          await Promise.all([dataFor(current, next, signal), imageFor(current, next)]);
+          if (signal.aborted) return;
+          done++; if (onProgress) onProgress(done, total);
+        }
+      }
+      await Promise.all([worker(), worker()]);
+      if (signal.aborted) throw new DOMException('已取消预取', 'AbortError');
     }
     function scheduleNext() {
       clearTimeout(timer);
-      if (playing && !loading) {
+      if (playing && !loading && !buffering) {
         const delay = Math.max(0, lastAdvance + 1000 / +$('fps').value - performance.now());
         timer = setTimeout(() => requestFrame((frame + 1) % scene.nf), delay);
       }
@@ -344,6 +333,7 @@
       controller = new AbortController();
       const signal = controller.signal, id = ++requestId, selected = scene;
       const requestedFrame = next;
+      const requestedMeta = MODELS.map(m => frameMeta(selected, m, next));
       pendingFrame = requestedFrame;
       loading = true;
       $('play').disabled = false;
@@ -373,18 +363,19 @@
         });
         resize();
         MODELS.forEach((m, i) => {
-          panels[m].data = data[i]; panels[m].count = frameMeta(selected, m, frame).count; drawFrame(m);
+          panels[m].data = data[i]; panels[m].count = requestedMeta[i].count; drawFrame(m);
           panels[m].renderer.domElement.dataset.frame = String(frame);
         });
         $('play').disabled = false; $('status').textContent = '四模型当前帧已就绪';
         if (snap) applyCams(requestedFrame);
-        lastAdvance = performance.now();
-        warmAhead(selected, frame);
+        const now = performance.now(), interval = 1000 / +$('fps').value;
+        lastAdvance = playing && lastAdvance ? Math.max(lastAdvance + interval, now - interval) : now;
+        if (!playing || $('buffer-mode').value === 'stream') warmAhead(selected, frame).catch(() => {});
         scheduleNext();
       }
     }
-    function loadScene(selected) {
-      stop(); scene = selected; frame = 0; pendingFrame = 0;
+    function loadScene(selected, initialFrame = 0) {
+      stop(); cancelPrefetch(); scene = selected; frame = 0; pendingFrame = 0;
       const blank = new Image();
       blank.id = 'fimg'; blank.alt = '正在加载输入帧';
       $('fimg').replaceWith(blank);
@@ -409,6 +400,7 @@
       $('hd').disabled = !hasHd;
       $('hd-note').textContent = hasHd ? '高清模式：按当前场景/帧加载已导出的高密度真实点；抽样和置信度规则与预览一致。' : '当前案例没有已导出的高清数据，保持 8,000 点/帧预览；不会通过增大点尺寸伪造细节。';
       if (!hasHd) hdEnabled = false;
+      $('hd').checked = hdEnabled;
       $('v').pause(); $('v').removeAttribute('src'); $('v').load();
       $('vcard').hidden = !scene.video;
       $('load-video').hidden = false;
@@ -424,22 +416,22 @@
         tab.classList.toggle('active', active); tab.setAttribute('aria-pressed', String(active));
       });
       try { history.replaceState(null, '', '#' + encodeURIComponent(scene.id)); } catch (_) {}
-      resetView(); requestFrame(0);
+      resetView(); requestFrame(initialFrame);
     }
-    function chooseGroup(group, wanted) {
+    function chooseGroup(group, wanted, initialFrame = 0) {
       const list = SCENES.filter(s => s.group === group);
       $('sel').replaceChildren();
       list.forEach(s => {
         const option = document.createElement('option'); option.value = s.id;
         option.textContent = s.title + ' · ' + (s.sid || s.id); $('sel').appendChild(option);
       });
-      loadScene(list.find(s => s.id === wanted) || list[0]);
+      loadScene(list.find(s => s.id === wanted) || list[0], initialFrame);
     }
     document.querySelectorAll('.tab').forEach(tab => {
       tab.onclick = () => { if (scene.group !== tab.dataset.group) chooseGroup(tab.dataset.group); };
     });
     $('sel').onchange = () => loadScene(SCENES.find(s => s.id === $('sel').value));
-    $('frame').oninput = () => { stop(); requestFrame(+$('frame').value); };
+    $('frame').oninput = () => { stop(); cancelPrefetch(); requestFrame(+$('frame').value); };
     $('conf').oninput = () => {
       confidence = +$('conf').value; $('confv').textContent = confidence + '%'; MODELS.forEach(drawFrame);
     };
@@ -447,7 +439,7 @@
       const hasHd = scene && MODELS.every(m => scene.bins[m]?.hdPath && scene.bins[m]?.hdCounts);
       hdEnabled = !!$('hd').checked && hasHd;
       if (!hasHd) { $('hd').checked = false; $('hd-note').textContent = '当前案例没有已导出的高清数据，保持 8,000 点/帧预览；不会通过增大点尺寸伪造细节。'; return; }
-      cache.clear(); requestFrame(frame);
+      stop(); cancelPrefetch(); requestFrame(frame);
     };
     $('psz').oninput = () => {
       $('pszv').textContent = $('psz').value;
@@ -466,18 +458,28 @@
     $('sync').onchange = () => syncFrom(MODELS[0]);
     $('rot').onchange = () => { dirty = true; };
     $('retry').onclick = () => requestFrame(pendingFrame);
-    $('play').onclick = () => {
-      if (playing) stop();
-      else {
-        playing = true; $('play').textContent = '❚❚ 暂停';
-        const current = scene, id = requestId;
-        $('status').textContent = '正在缓冲后续帧…';
-        warmAhead(current, frame, 2).then(() => {
-          if (!playing || scene !== current || requestId !== id) return;
-          lastAdvance = performance.now();
-          $('status').textContent = '四模型当前帧已就绪';
-          scheduleNext();
+    $('buffer-mode').onchange = () => { stop(); cancelPrefetch(); };
+    $('play').onclick = async () => {
+      if (playing) { stop(); cancelPrefetch(); return; }
+      // The pending first frame will finish before a second click starts playback.
+      if (loading) return;
+      playing = true; buffering = true;
+      const epoch = ++playbackEpoch, current = scene, id = requestId;
+      $('play').textContent = '❚❚ 暂停';
+      const complete = $('buffer-mode').value === 'complete';
+      const distance = complete ? current.nf - 1 : Math.min(8, current.nf - 1);
+      $('status').textContent = '正在缓冲后续帧…';
+      try {
+        await warmAhead(current, frame, distance, (done, total) => {
+          if (epoch === playbackEpoch) $('status').textContent = `正在缓冲 ${done + 1} / ${total + 1} 帧…`;
         });
+        if (!playing || epoch !== playbackEpoch || scene !== current || requestId !== id) return;
+        buffering = false; lastAdvance = performance.now();
+        $('status').textContent = '四模型当前帧已就绪 · ' + (complete ? '整段已缓存' : '开始播放');
+        scheduleNext();
+      } catch (error) {
+        if (epoch !== playbackEpoch) return;
+        stop(); $('status').textContent = '缓冲未完成，请点击播放重试：' + error.message;
       }
     };
     $('load-video').onclick = () => {
@@ -489,8 +491,14 @@
     function resize() {
       MODELS.forEach(m => {
         const p = panels[m], bounds = p.renderer.domElement.getBoundingClientRect();
-        if (bounds.width > 0 && bounds.height > 0) p.renderer.setSize(bounds.width, bounds.height, false);
-        p.camera.aspect = bounds.width / bounds.height; p.camera.updateProjectionMatrix();
+        const width = Math.round(bounds.width), height = Math.round(bounds.height);
+        if (width <= 0 || height <= 0) return;
+        // setSize reallocates the drawing buffer; only resize on layout changes.
+        if (p.width !== width || p.height !== height) {
+          p.width = width; p.height = height;
+          p.renderer.setSize(width, height, false);
+          p.camera.aspect = width / height; p.camera.updateProjectionMatrix();
+        }
       }); dirty = true;
     }
     window.addEventListener('resize', resize);
@@ -507,7 +515,7 @@
           }); dirty = true;
         }
         if (dirty) {
-          MODELS.forEach(m => { const p = panels[m]; p.renderer.render(p.world, p.camera); });
+          MODELS.forEach(m => { const p = panels[m]; if (!$('card_' + m).hidden) p.renderer.render(p.world, p.camera); });
           dirty = false;
         }
       }
@@ -517,6 +525,6 @@
     resize(); requestAnimationFrame(tick);
     let initial;
     try { initial = SCENES.find(s => s.id === decodeURIComponent(location.hash.slice(1))); } catch (_) {}
-    initial = initial || SCENES[0]; chooseGroup(initial.group, initial.id);
+    initial = initial || SCENES[0]; chooseGroup(initial.group, initial.id, Number(new URLSearchParams(location.search).get('frame')) || 0);
   } catch (error) { fatal(error); }
 })();

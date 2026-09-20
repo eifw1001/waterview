@@ -39,9 +39,9 @@ const assert = require('node:assert/strict');
     await page.goto('http://127.0.0.1:8765/'); await ready(); await assertAligned();
     assert.equal(await page.locator('#sel option').count(), 6);
     assert.equal(await page.locator('#align').getAttribute('aria-pressed'), 'true', 'Wild gets camera poses');
-    assert.equal(await page.locator('#metrics-table-wrap .metric-table tbody tr').count(), 4);
-    assert.equal(await page.locator('#gt-gallery .gallery-card').count(), 10);
-    assert.match(await page.locator('#score_wat3r').textContent(), /无 GT|AbsRel/);
+    assert.equal(await page.locator('#metrics-table-wrap').count(), 0, 'home is exclusively the player');
+    assert.equal(await page.locator('.site-nav a').count(), 4);
+    assert.match(await page.locator('#score_wat3r').textContent(), /无 GT|Chamfer/);
     await page.selectOption('#layout', 'two');
     assert(await page.locator('#card_wat3r').isVisible() && await page.locator('#card_watervggt').isVisible());
     assert(!(await page.locator('#card_da3').isVisible()), 'two-model layout focuses Wat3R and Water-VGGT');
@@ -59,21 +59,22 @@ const assert = require('node:assert/strict');
     await page.locator('.quick[data-quick="creature_03"]').click();
     await ready(); await assertAligned();
     assert.equal(await page.locator('#sel').inputValue(), 'creature_03');
+    await page.locator('#frame').fill('0'); await page.locator('#frame').dispatchEvent('input'); await ready();
     assert.equal(await page.locator('#hd').isEnabled(), true, 'focus cases expose real HD exports');
 
     // A slow model request must never advance only the image or some canvases.
-    await page.route('**/clouds_frames/**/020.bin', async route => {
+    await page.route('**/clouds_frames/**/010.bin', async route => {
       await new Promise(resolve => setTimeout(resolve, 500));
       await route.continue().catch(() => {});
     });
-    await page.locator('#frame').fill('20');
+    await page.locator('#frame').fill('10');
     await page.locator('#frame').dispatchEvent('input');
     await page.waitForTimeout(200);
     await assertAligned();
     assert.equal(await page.locator('#frv').textContent(), '1 / 32');
     await ready(); await assertAligned();
-    assert.equal(await page.locator('#frv').textContent(), '21 / 32');
-    await page.unroute('**/clouds_frames/**/020.bin');
+    assert.equal(await page.locator('#frv').textContent(), '11 / 32');
+    await page.unroute('**/clouds_frames/**/010.bin');
 
     // Scrubbing can supersede an in-flight frame without a stale repaint.
     await page.route('**/clouds_frames/**/025.bin', async route => {
@@ -88,6 +89,7 @@ const assert = require('node:assert/strict');
 
     // Buffered playback advances at the requested cadence without a second delay.
     await page.selectOption('#sel', 'creature_14'); await ready();
+    await page.locator('#fps').fill('3'); await page.locator('#fps').dispatchEvent('input');
     const ticks = [];
     await page.exposeFunction('reportFrame', f => ticks.push({f, time: Date.now()}));
     await page.evaluate(() => {
@@ -103,6 +105,16 @@ const assert = require('node:assert/strict');
     await page.setViewportSize({width: 390, height: 844});
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await page.screenshot({path: '/tmp/waterview-playback-mobile.png', fullPage: true});
+    await page.goto('http://127.0.0.1:8765/benchmark.html');
+    assert.equal(await page.locator('#metrics-table-wrap tbody tr').count(), 4);
+    assert.equal(await page.locator('#scene-table tbody tr').count(), 42);
+    await page.goto('http://127.0.0.1:8765/gt.html');
+    assert.equal(await page.locator('#gt-gallery .gallery-card').count(), 10);
+    await page.locator('.gallery-images img').first().click();
+    assert(await page.locator('dialog').isVisible()); await page.keyboard.press('Escape');
+    await page.goto('http://127.0.0.1:8765/depth.html');
+    assert.equal(await page.locator('#depth-panels .card').count(), 6);
+    assert.equal(await page.locator('#depth-scene option').count(), 10);
     assert.deepEqual(errors, []);
     console.log('PASS: image + four clouds advance atomically; Wild and Water3D cameras match frames; aspect ratios; slow fetch; fast scrub; buffered playback; mobile');
   } finally { await browser.close(); }
