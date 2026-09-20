@@ -25,7 +25,7 @@
 
 <section class="overview panel compact-benchmark" aria-label="Benchmark 信息">
   <div class="section-kicker">BENCHMARK INFORMATION</div>
-  <div class="section-heading"><div><h2>Water3D / Wat3R real-world benchmark</h2><p>四模型数字按同一套本地评测协议汇总；不等同于四篇论文各自报告的官方表格。</p></div><span class="local-badge">LOCAL EVALUATION</span></div>
+  <div class="section-heading"><div><h2>Water3D / Wat3R real-world benchmark</h2><p>统一使用 common_frames；Pose 采用 AUC@30 / 15 / 5 / 3，Depth 采用 AbsRel、RMSE、SqRel、δ1 / δ2 / δ3，Point Cloud 采用 CD / Chamfer、Acc、Comp、F-score（阈值为 GT 包围盒对角线的 2%）；Depth 逐视图做 scale+shift 对齐并在 geometric GT valid_mask 上计算，点云使用 Sim(3) 对齐，场景内按帧取平均。</p></div><span class="local-badge">LOCAL EVALUATION</span></div>
   <div id="benchmark-stats" class="stat-grid"></div>
   <div id="protocol-note" class="protocol-note"></div>
   <details class="scene-details"><summary>展开逐 Scene：序列长度与分辨率</summary><div id="scene-table" class="table-wrap"></div></details>
