@@ -15,6 +15,14 @@ html{scroll-behavior:smooth;scroll-padding-top:12px}
 @media(max-width:1000px){.method-grid,.discussion-grid{grid-template-columns:1fr}.evidence-flow,.depth-model-row{grid-template-columns:repeat(2,minmax(0,1fr))}.metric-meaning{grid-template-columns:1fr}}
 @media(max-width:600px){.evidence-flow,.depth-model-row,.depth-reference-row{grid-template-columns:1fr}}
 
+/* v18: homepage method flow, WCV explainer, and stronger metric ranking */
+.method-points{list-style:none;padding:0;margin:8px 0 10px;display:grid;gap:5px;color:var(--muted);font-size:12px;line-height:1.55}.method-points li{padding-left:12px;position:relative}.method-points li::before{content:"";position:absolute;left:0;top:.65em;width:4px;height:4px;border-radius:50%;background:var(--accent)}.method-points b{color:var(--text)}
+.wcv-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.wcv-grid article{background:#0d151f;border:1px solid var(--line);border-radius:10px;padding:12px 14px}.wcv-grid h3{font-size:13px;margin:0 0 6px}.wcv-grid p{color:var(--muted);font-size:12px;line-height:1.6;margin:0}.wcv-flow{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border:1px solid #2a4d56;border-radius:9px;background:#0d1820;color:#b9fff3;font-size:11px}.wcv-flow b{color:#75cfc5;font-size:14px}.wcv-flow span{white-space:nowrap}
+.results-heading{display:flex;justify-content:space-between;gap:18px;align-items:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}.results-heading h3{font-size:15px;margin:0}.results-heading p{color:var(--muted);font-size:11px;line-height:1.5;margin:4px 0 0}.ranking-legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:11px}.ranking-legend span{padding:3px 8px;border-radius:5px}.rank-legend-best{font-weight:800;color:#effff6;background:rgba(61,137,91,.28);border:1px solid #497e64}.rank-legend-second{text-decoration:underline;text-decoration-color:#ffbd79;text-decoration-thickness:2px;text-underline-offset:3px;background:rgba(255,189,121,.10);border:1px solid #66533c}
+.metric-table td.rank-1{font-weight:800;color:#effff6;background:rgba(61,137,91,.24);box-shadow:inset 3px 0 #4f9e73}.metric-table td.rank-2{color:#f5dfc6;background:rgba(255,189,121,.09);text-decoration:underline;text-decoration-color:#ffbd79;text-decoration-thickness:2px;text-underline-offset:3px;box-shadow:inset 3px 0 #8b6c47}
+@media(max-width:1000px){.wcv-grid{grid-template-columns:1fr 1fr}.results-heading{display:block}.results-heading .metric-tabs{margin-top:10px}}
+@media(max-width:600px){.wcv-grid{grid-template-columns:1fr}.wcv-flow{justify-content:flex-start;gap:5px}.wcv-flow b{font-size:12px}}
+
 /* v14: PPT-like compact report + explicit two-row depth evidence */
 .compact-methods .method-grid{margin-top:10px}
 .compact-methods .method-card{padding:12px 14px}

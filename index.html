@@ -1,20 +1,27 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · 汇报首页</title><link rel="stylesheet" href="assets/viewer.css?v=17"><script defer src="assets/benchmark.js?v=3"></script><script defer src="assets/reports.js?v=4"></script></head><body>
-<header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div><h1>水下三维重建 · 方法与定量结果</h1><p class="sub">方法为什么适合水下 → 指标在测什么 → 实际跑出来怎样。</p></header>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WaterView · 汇报首页</title><link rel="stylesheet" href="assets/viewer.css?v=18"><script defer src="assets/benchmark.js?v=3"></script><script defer src="assets/reports.js?v=4"></script></head><body>
+<header><div class="eyebrow">WATERVIEW / UNDERWATER RECONSTRUCTION</div><h1>水下三维重建 · 方法与定量结果</h1><p class="sub">方法核心 → WCV 补充说明 → 指标在测什么 → 实际跑出来怎样。</p></header>
 <nav class="site-nav" aria-label="页面导航"><a href="index.html" aria-current="page">汇报首页</a><a href="viewer.html">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a><a href="discussion.html">讨论问题</a></nav>
 <main>
 <section class="panel method-overview compact-methods" aria-label="Method Overview">
 <div class="section-kicker">METHOD OVERVIEW</div>
-<div class="section-heading"><div><h2>为什么这两类方法适合水下？</h2><p>只保留汇报需要的核心差异，下面马上进入实跑结果。</p></div></div>
+<div class="section-heading"><div><h2>两种方法的核心机制</h2><p>从论文方法本身出发，概括它们如何处理水下三维重建。</p></div></div>
 <div class="method-grid">
-<article class="method-card"><div class="method-tag">Wat3R</div><h3>核心：把预训练 VGGT 迁移到真实水下域</h3><p>Wat3R 不是从零训练一个新 backbone，而是以 <b>预训练 VGGT</b> 为基础做 <b>Mean Teacher 跨域半监督训练</b>：一边使用带几何标注的合成水下数据，一边使用大量没有 3D 标注的真实水下视频。</p><p><b>Teacher</b> 给真实视频产生 camera / depth / point-map 伪标签，<b>Student</b> 用这些伪标签学习；Teacher 参数由 Student 的 EMA 更新。除此之外，再加入 <b>per-view consistency + cross-view consistency</b>，用其他视角中可靠的几何线索约束当前视角，减少散射、衰减和低可见度造成的信息损失。</p><p class="method-summary"><strong>汇报一句话：</strong>不是显式告诉模型“这是什么水”，而是用合成水下监督 + 大量真实无标注视频，把原本的 VGGT 适配到水下。</p></article>
-<article class="method-card"><div class="method-tag">Water-VGGT / WCV</div><h3>核心：把水体条件显式注入 VGGT 的几何推理</h3><p><b>WCV = Water Condition Vector（水体条件向量）</b>，表示与折射、能见度、散射和波长相关衰减有关的条件变量 / latent proxies。它不是简单把图像“增强一下”，而是转成 condition embedding，通过 <b>FiLM + conditional attention bias</b> 注入 Transformer 和 prediction heads。</p><p><b>训练也不是只训练 WCV：</b>① 先在 Underwater3D-36K 上预训练 WCV estimator；② 用官方 pretrained VGGT 初始化并冻结 Transformer，只训练 WCV embedding、FiLM、conditional attention bias、Refraction Camera Head 等新增模块；③ 再逐步解冻部分 Transformer，最后整套 Water-VGGT 端到端联合 fine-tune。</p><p class="method-summary"><strong>汇报一句话：</strong>Wat3R 是“让 VGGT 从水下数据里学会适应”；Water-VGGT 是“把当前水况作为条件直接注入 VGGT，并最终联合微调”。</p></article>
+<article class="method-card"><div class="method-tag">Wat3R</div><h3>VGGT + Mean Teacher 半监督适配</h3><ul class="method-points"><li><b>Base：</b>VGGT</li><li><b>训练：</b>合成水下有标注数据 + 真实无标注视频</li><li><b>学习方式：</b>Teacher–Student 伪标签</li><li><b>约束：</b>Cross-view Consistency</li></ul><p class="method-summary"><strong>核心定位：</strong>把预训练 VGGT 适配到真实水下域。</p></article>
+<article class="method-card"><div class="method-tag">Water-VGGT</div><h3>把当前水况注入 VGGT 的几何推理</h3><ul class="method-points"><li><b>Base：</b>VGGT</li><li><b>条件表示：</b>WCV 显式表示水体条件</li><li><b>注入方式：</b>FiLM + Conditional Attention Bias → Transformer</li><li><b>预测模块：</b>Camera / Dense Geometry / Tracking Heads</li></ul><p class="method-summary"><strong>核心定位：</strong>让模型根据当前水况调整几何推理。</p></article>
 </div>
 
 </section>
 
-<section class="panel metrics-panel" aria-label="定量结果"><div class="section-kicker">QUANTITATIVE RESULTS</div><div class="section-heading"><div><h2>四模型定量结果</h2><p>第一名加粗、第二名下划线；排名按未舍入值和指标方向计算，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>
-<div class="metric-meaning"><span><strong>Pose</strong>：相机轨迹 / 位姿估计是否准确</span><span><strong>Depth</strong>：逐像素深度预测是否准确</span><span><strong>Point Cloud</strong>：最终三维几何是否与 GT 对齐、完整</span></div>
-<div id="metric-explanation" class="metric-explanation"></div><div id="metrics-table-wrap" class="table-wrap"></div><p class="footnote">↑ 越大越好，↓ 越小越好。Pose / Depth / Point Cloud 分开统计；点云 CD 使用 point.overall。</p></section>
+<section class="panel wcv-panel" aria-label="WCV 说明"><div class="section-kicker">WCV</div><div class="section-heading"><div><h2>WCV：水体条件表示</h2><p>把水下成像条件整理成可以进入几何网络的条件信号。</p></div></div>
+<div class="wcv-grid"><article><h3>是什么</h3><p>表示折射、能见度、散射、波长衰减等水体条件。</p></article><article><h3>怎么训练</h3><p>合成数据用已知物理参数直接监督；真实数据通过重建一致性 / 几何监督间接优化。</p></article><article><h3>怎么用</h3><p>WCV → condition embedding → FiLM / Attention Bias → Transformer + Heads。</p></article></div>
+<div class="wcv-flow" aria-label="WCV processing flow"><span>RGB</span><b>→</b><span>WCV Estimator</span><b>→</b><span>WCV</span><b>→</b><span>Condition Embedding</span><b>→</b><span>Transformer / Heads</span></div>
+</section>
+
+<section class="panel metrics-panel" aria-label="指标与定量结果"><div class="section-kicker">METRICS &amp; RESULTS</div><div class="section-heading"><div><h2>指标在测什么</h2><p>先看三类指标的含义，再查看同一评测协议下的结果。</p></div></div>
+<div class="metric-meaning"><span><strong>Pose</strong>：相机位姿是否准确</span><span><strong>Depth</strong>：逐像素深度是否准确</span><span><strong>Point Cloud</strong>：最终三维几何是否准确、完整</span></div>
+<div class="results-heading"><div><h3>三组定量结果</h3><p>按未舍入原始值排名；依据每个指标的 ↑ / ↓ 方向判断，缺失值不参与。</p></div><div id="metric-tabs" class="metric-tabs" role="tablist"></div></div>
+<div class="ranking-legend" aria-label="排名样式说明"><span class="rank-legend-best">第一名</span><span class="rank-legend-second">第二名</span><span>其他结果保持普通样式</span></div>
+<div id="metrics-table-wrap" class="table-wrap"></div><p class="footnote">↑ 越大越好，↓ 越小越好。Pose / Depth / Point Cloud 分开统计；点云 CD 使用 point.overall。</p></section>
 
 <section class="overview panel compact-benchmark" aria-label="Benchmark 信息">
   <div class="section-kicker">BENCHMARK INFORMATION</div>
