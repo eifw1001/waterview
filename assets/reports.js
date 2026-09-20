@@ -42,6 +42,12 @@ const MODEL_LABELS=BENCH.models;
     $('metric-tabs').innerHTML = Object.entries(metricSpec).map(([key, value]) => `<button class="metric-tab${key === kind ? ' active' : ''}" data-metric="${key}" role="tab" aria-selected="${key === kind}">${value.title}</button>`).join('');
     const ranks = spec.fields.map(([, , , higher], index) => rows.map(row => ({row, value: row.values[index]})).filter(x => finite(x.value)).sort((a, b) => higher ? b.value - a.value : a.value - b.value).map(x => x.value));
     $('metrics-table-wrap').innerHTML = `<table class="metric-table"><thead><tr><th>model · ${spec.title}</th>${spec.fields.map(([, label, dir]) => `<th>${label} ${dir}<br><small>scene mean</small></th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr><td>${esc(MODEL_LABELS[row.model])}</td>${row.values.map((value, index) => { const rank = [...new Set(ranks[index])].indexOf(value); return `<td class="${rank === 0 ? 'rank-1' : rank === 1 ? 'rank-2' : ''}">${finite(value) ? value.toFixed(4) : '—'}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+    const explanation = {
+      pose: '<strong>Pose：</strong>AUC@30 / 15 / 5 / 3 衡量相机相对位姿在不同角度误差阈值内的整体准确度，<b>↑ 越高越好</b>。',
+      depth: '<strong>Depth：</strong>AbsRel / RMSE / SqRel 等衡量预测深度与 GT 的差异，通常 <b>↓ 越低越好</b>；δ1 / δ2 / δ3 表示落在相对误差阈值内的像素比例，<b>↑ 越高越好</b>。',
+      point: '<strong>Point Cloud：</strong>Chamfer / Acc / Comp 衡量预测点云与 GT 的几何距离与完整性，通常 <b>↓ 越低越好</b>；F-score / Precision / Recall <b>↑ 越高越好</b>。'
+    };
+    if ($('metric-explanation')) $('metric-explanation').innerHTML = explanation[kind];
     document.querySelectorAll('.metric-tab').forEach(tab => tab.onclick = () => renderMetricTable(tab.dataset.metric));
   }
   function renderGallery() {
@@ -52,7 +58,7 @@ const MODEL_LABELS=BENCH.models;
 
 if ($('benchmark-stats')) {renderBenchmark(); renderMetricTable();
  const res=v=>Array.isArray(v)?v.join(' × '):'—';
- $('scene-table').innerHTML='<table class="metric-table"><thead><tr><th>场景</th><th>原始帧数</th><th>评测帧数</th><th>原图</th><th>GT</th><th>Water-VGGT 输入</th></tr></thead><tbody>'+Object.entries(BENCH.sceneStats).map(([id,s])=>`<tr><td>${esc(id)}</td><td>${s.originalFrames}</td><td>${s.evaluatedFrames}</td><td>${res(s.sourceResolution)}</td><td>${res(s.gtResolution)}</td><td>${res(s.inputResolution)}</td></tr>`).join('')+'</tbody></table>';
+ if ($('scene-table')) $('scene-table').innerHTML='<table class="metric-table"><thead><tr><th>场景</th><th>原始帧数</th><th>评测帧数</th><th>原图</th><th>GT</th><th>Water-VGGT 输入</th></tr></thead><tbody>'+Object.entries(BENCH.sceneStats).map(([id,s])=>`<tr><td>${esc(id)}</td><td>${s.originalFrames}</td><td>${s.evaluatedFrames}</td><td>${res(s.sourceResolution)}</td><td>${res(s.gtResolution)}</td><td>${res(s.inputResolution)}</td></tr>`).join('')+'</tbody></table>';
 }
 if ($('gt-gallery')) renderGallery();
 const dialog=document.createElement('dialog');dialog.className='image-dialog';dialog.innerHTML='<button aria-label="关闭大图">关闭</button><img alt="放大查看">';document.body.append(dialog);dialog.querySelector('button').onclick=()=>dialog.close();dialog.onclick=e=>{if(e.target===dialog)dialog.close()};
