@@ -23,16 +23,19 @@ const assert = require('node:assert/strict');
   assert(gaps.length>=30,'played an entire clip');
   assert(gaps.every(x=>x>=50&&x<180),'10 fps slow-network gaps: '+gaps);
   console.log('SLOW_NETWORK_BUFFERED_GAPS_MS',Math.min(...gaps),Math.max(...gaps));
-  // Switch density during playback, then switch to a scene without HD.
+  // Switch density during playback, then verify Water3D also has a real dense export.
   await page.check('#hd');await ready();
   assert.match(await page.locator('#count_wat3r').textContent(),/20,000/);
   await page.click('#play');await page.waitForTimeout(150);
   await page.click('[data-group="water3d"]');await ready();
-  assert.equal(await page.locator('#hd').isChecked(),false);
+  assert.equal(await page.locator('#hd').isEnabled(),true);
+  assert.equal(await page.locator('#hd').isChecked(),true);
+  assert.match(await page.locator('#count_wat3r').textContent(),/12,000/);
   assert.equal(await page.locator('#play').textContent(),'▶ 播放');
   // Quick-link uses the trimmed display frame corresponding to GT frame 22.
   await page.click('[data-quick="gt_missing"]');await ready();
   assert.equal(await page.locator('#frv').textContent(),'21 / 30');
+  assert.match(await page.locator('#count_wat3r').textContent(),/12,000/);
   assert(await page.locator('#gt-card').isVisible());
   assert((await page.locator('#gtimg').getAttribute('src')).includes('_022_gt'));
   await page.screenshot({path:'/tmp/waterview-home-fixed.png',fullPage:true});

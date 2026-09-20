@@ -2,7 +2,7 @@
 
 在线预览：https://eifw1001.github.io/waterview/
 
-展示 Wat3R、DA3、Water-VGGT、Water-VGGT+WCV 的逐帧预测点云，并把
+展示 Wat3R、DA3、VGGT、WCV + VGGT 的逐帧预测点云，并把
 `metrics.json` 的场景平均分数、排名、过滤后的 geometric GT 和播放器放在同一页。
 各模型通过 Umeyama Sim(3) 对齐到 Wat3R 参考系，并共用中心/半径归一化；
 Wild 没有 GT 准确度分数，Water3D 分数按固定本地协议展示。
@@ -12,9 +12,9 @@ Wild 没有 GT 准确度分数，Water3D 分数按固定本地协议展示。
 - Pose / Depth / Point Cloud 分开的定量表格，按未舍入值和 ↑ / ↓ 自动排名；
 - 10 张 geometric GT + valid_mask 画廊，明确原图、GT、输入/评测尺寸与帧数口径；
 - 当前场景四个模型的场景平均分数、跨模型名次、Depth / Point Cloud 切换；
-- 四模型、Wat3R/Water-VGGT 两模型大画面、单模型放大布局；
+- 四模型、Wat3R/VGGT 两模型大画面、单模型放大布局；
 - `creature_15` 鲨鱼、`creature_03` 背景细杆、GT 缺失候选快捷入口；
-- 已发布的 Wild 场景接入每帧 20,000 点的真实高密度导出；高清文件作为静态后台资源，只有勾选高清模式时才按当前帧请求。没有对应高密度源文件的 Water3D 场景明确回退到 8,000 点预览。
+- 所有已展示场景均可切换已有真实高密度导出：Wild 约 20,000 点/帧，Water3D 约 12,000 点/帧；仅勾选高清模式时按当前帧请求。
 
 ## 场景分组
 
@@ -38,16 +38,16 @@ Wild 没有 GT 准确度分数，Water3D 分数按固定本地协议展示。
 | Wat3R 相对最差 | video_7762649 | 6.37 vs 1.38（4.6×） |
 | Wat3R 相对最差 | video_31650576 | 远场漂移 · 0.68 vs 0.24（2.8×） |
 | Wat3R 相对最差 | video_11138687 | 结构发散 · 0.62 vs 0.23（2.7×） |
-| V-GGT 绝对最差 | video_33847329 | 整体糊化 · 5.44（四模型均 >5） |
-| V-GGT 绝对最差 | video_7762649 | 2.64（最优 da3 1.38） |
-| V-GGT 绝对最差 | video_11273415 | 2.55（最优 wat3r 1.62） |
-| V-GGT 绝对最差 | video_34172248 | 层间错位 · 2.52（最优 da3 0.48） |
-| V-GGT 绝对最差 | video_31550645 | 雪片噪声 · 2.34（最优 wat3r 1.14） |
-| V-GGT 相对最差 | video_31824746 | 结构坍缩 · 2.03 vs 0.30（6.8×） |
-| V-GGT 相对最差 | video_34172248 | 2.52 vs 0.48（5.2×） |
-| V-GGT 相对最差 | video_34808164 | 碎片条带 · 0.69 vs 0.17（4.1×） |
-| V-GGT 相对最差 | video_34675110 | 断裂散落 · 1.43 vs 0.42（3.4×） |
-| V-GGT 相对最差 | cv_1326 | 远场毛刺 · 0.44 vs 0.14（3.2×） |
+| VGGT 绝对最差 | video_33847329 | 整体糊化 · 5.44（四模型均 >5） |
+| VGGT 绝对最差 | video_7762649 | 2.64（最优 da3 1.38） |
+| VGGT 绝对最差 | video_11273415 | 2.55（最优 wat3r 1.62） |
+| VGGT 绝对最差 | video_34172248 | 层间错位 · 2.52（最优 da3 0.48） |
+| VGGT 绝对最差 | video_31550645 | 雪片噪声 · 2.34（最优 wat3r 1.14） |
+| VGGT 相对最差 | video_31824746 | 结构坍缩 · 2.03 vs 0.30（6.8×） |
+| VGGT 相对最差 | video_34172248 | 2.52 vs 0.48（5.2×） |
+| VGGT 相对最差 | video_34808164 | 碎片条带 · 0.69 vs 0.17（4.1×） |
+| VGGT 相对最差 | video_34675110 | 断裂散落 · 1.43 vs 0.42（3.4×） |
+| VGGT 相对最差 | cv_1326 | 远场毛刺 · 0.44 vs 0.14（3.2×） |
 
 Wild 从原页面的 12 个场景中，按首帧、中间帧、末帧的四模型几何差异筛选前 5 个，
 再检查输入画面。差异分数：每模型每帧按索引步长 8 采样，在已有共同坐标系下，
@@ -64,7 +64,7 @@ Water3D 按输入画面的色偏、能见度和纹理覆盖选取三个案例。
 - **相对最差**：该模型 ÷ 同场最优模型 倍数最大的 5 个场景——反映该模型独有的失效，
   如 video_11634794 的 Wat3R 落后 10.0 倍。
 
-同一场景可出现在多个分组（如 video_7762649 同时在 Wat3R 绝对/相对与 V-GGT 绝对三组）；
+同一场景可出现在多个分组（如 video_7762649 同时在 Wat3R 绝对/相对与 VGGT 绝对三组）；
 条目 id 加后缀去重，`sid` 保留真实场景名，帧数据共用同一目录。
 页面卡片标题栏的数字即各模型在本场的 Chamfer，越小越好，当前关注的模型高亮。
 U36K 暂不在页面展示，原始文件保留。
@@ -111,7 +111,7 @@ python3 -m http.server 8765 --bind 127.0.0.1
 
 `build-metadata.py` 只读取现有 `metrics.json` / `common_frames.json`，不会重跑模型。
 `build-frames.py` 只对已有导出做切帧；高清源来自已有的
-`experiments/dynamic_underwater/website/clouds_anim`，当前仅对两个重点案例按需复制。
+`experiments/dynamic_underwater/website/clouds_anim`，Wild 和 Water3D 均按需复制到网站资源目录。
 
 浏览器验收：安装 Playwright 及其 Chromium，在预览服务启动后运行
 `node scripts/test-viewer.cjs`（或通过 `NODE_PATH` 指向外部 Playwright 安装）。
