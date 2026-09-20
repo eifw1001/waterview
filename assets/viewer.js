@@ -574,7 +574,7 @@
         $('ld_' + m).hidden = false; $('ld_' + m).textContent = '加载当前帧…';
       });
       dirty = true;
-      $('description').textContent = scene.description;
+      $('description').textContent = scene.description || '';
       $('badge').textContent = scene.badge || '';
       $('scene-id').textContent = scene.sid || scene.id;
       MODELS.forEach(m => { const chip = $('cham_' + m); chip.textContent = ''; chip.classList.remove('focus'); });

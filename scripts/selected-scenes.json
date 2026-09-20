@@ -5202,7 +5202,6 @@
     "img": "frames_img/water3d/video_7762649/",
     "tags": "Water3D · Wat3R 绝对最差 #1",
     "title": "点云散裂",
-    "description": "Wat3R 完全散裂、结构尽失，其余模型仍重建出连续岩礁与通道",
     "badge": "Wat3R 绝对最差 TOP1 · Chamfer 6.37",
     "focus": "wat3r",
     "chamfer": {
@@ -5827,7 +5826,6 @@
     "img": "frames_img/water3d/video_33847329/",
     "tags": "Water3D · Wat3R 绝对最差 #2",
     "title": "全场皆难",
-    "description": "四家 Chamfer 全在 5 以上的困难场景；Wat3R 结构反而最完整——绝对分高不等于相对掉队",
     "badge": "Wat3R 绝对最差 TOP2 · Chamfer 5.35",
     "focus": "wat3r",
     "chamfer": {
@@ -6489,7 +6487,6 @@
     "img": "frames_img/water3d/video_6430496/",
     "tags": "Water3D · Wat3R 绝对最差 #3",
     "title": "结构粘连",
-    "description": "低对比度下 Wat3R 点云糊成一片，其余模型仍能分辨珊瑚与岩面",
     "badge": "Wat3R 绝对最差 TOP3 · Chamfer 3.17",
     "focus": "wat3r",
     "chamfer": {
@@ -7151,7 +7148,6 @@
     "img": "frames_img/water3d/video_31824524/",
     "tags": "Water3D · Wat3R 绝对最差 #4",
     "title": "飞点失控",
-    "description": "Wat3R 出现大面积飞点，其余模型保持物体轮廓",
     "badge": "Wat3R 绝对最差 TOP4 · Chamfer 2.14",
     "focus": "wat3r",
     "chamfer": {
@@ -7813,7 +7809,6 @@
     "img": "frames_img/water3d/video_11273415/",
     "tags": "Water3D · Wat3R 绝对最差 #5",
     "title": "碎片化",
-    "description": "Water-VGGT 碎成片段的场景里 Wat3R 保持连续、实为四家最优，但绝对分仍进 TOP5",
     "badge": "Wat3R 绝对最差 TOP5 · Chamfer 1.62",
     "focus": "wat3r",
     "chamfer": {
@@ -8833,7 +8828,6 @@
     "img": "frames_img/water3d/video_6430496/",
     "tags": "Water3D · Wat3R 相对最差 #2 · 6.8×",
     "title": "结构粘连",
-    "description": "低对比度下 Wat3R 点云糊成一片，其余模型仍能分辨珊瑚与岩面",
     "badge": "Wat3R 相对最差 TOP2 · 6.8×（3.17 vs 最优 0.47）",
     "focus": "wat3r",
     "chamfer": {
@@ -9495,7 +9489,6 @@
     "img": "frames_img/water3d/video_7762649/",
     "tags": "Water3D · Wat3R 相对最差 #3 · 4.6×",
     "title": "点云散裂",
-    "description": "Wat3R 完全散裂、结构尽失，其余模型仍重建出连续岩礁与通道",
     "badge": "Wat3R 相对最差 TOP3 · 4.6×（6.37 vs 最优 1.38）",
     "focus": "wat3r",
     "chamfer": {
@@ -16399,7 +16392,6 @@
     "img": "frames_img/water3d/video_34675110/",
     "tags": "Water3D · Water-VGGT 相对最差 #4 · 3.4×",
     "title": "断裂散落",
-    "description": "礁坡场景，Water-VGGT 点云断成细条、大片空洞，Water-VGGT + WCV 反而最完整",
     "badge": "Water-VGGT 相对最差 TOP4 · 3.4×（1.43 vs 最优 0.42）",
     "focus": "watervggt",
     "chamfer": {
@@ -17061,7 +17053,6 @@
     "img": "frames_img/water3d/cv_1326/",
     "tags": "Water3D · Water-VGGT 相对最差 #5 · 3.2×",
     "title": "远场毛刺",
-    "description": "偏绿的沙石海底，Water-VGGT 远场翘起毛刺、整体偏噪，DA3 最平整，Water-VGGT + WCV 大幅恢复",
     "badge": "Water-VGGT 相对最差 TOP5 · 3.2×（0.44 vs 最优 0.14）",
     "focus": "watervggt",
     "chamfer": {
