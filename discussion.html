@@ -2,7 +2,7 @@
 <header><h1>讨论问题</h1></header>
 <nav class="site-nav" aria-label="页面导航"><a href="index.html">汇报首页</a><a href="viewer.html">点云 + 深度</a><a href="gt.html">GT 检查</a><a href="depth.html">深度画廊</a><a href="discussion.html" aria-current="page">讨论问题</a></nav>
 <main><section class="panel"><div class="discussion-grid">
-<article><span>Q1 · GT 覆盖</span><h3>GT 缺失区域如何影响结论？</h3><p>当前指标使用 GT valid_mask；GT 缺失区域未被当前指标直接覆盖。需要把覆盖不足与有效区域中的误差、对齐和边界问题分开检查。</p></article>
+<article><span>Q1 · GT 覆盖</span><h3>GT 缺失区域如何影响结论？</h3><p>当前指标只在 GT valid_mask 有效的位置计算；该区域没有可用 GT，当前指标不计算这里的误差。覆盖不足需要与有效区域中的误差、对齐和边界问题分开检查。</p></article>
 <article><span>Q2 · 失败位置</span><h3>Wat3R / Water-VGGT 从哪一层开始失败？</h3><p>对照同一场景的 RGB、Depth 和 Point Cloud，区分深度阶段已经出现的误差与三维重建阶段的断裂、缺失或错位。</p></article>
 <article><span>Q3 · 数据与水下成像</span><h3>瓶颈来自数据，还是水下成像条件？</h3><p>分别观察真实无标注数据的覆盖，以及折射、散射和波长相关衰减等条件对几何推理的影响。</p></article>
 </div></section></main></body></html>
