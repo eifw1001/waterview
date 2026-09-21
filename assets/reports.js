@@ -19,11 +19,9 @@ const MODEL_LABELS=BENCH.models;
     const stats = Object.values(BENCH.sceneStats || {});
     const evaluated = stats.map(x => x.evaluatedFrames).filter(Number.isFinite);
     const original = stats.map(x => x.originalFrames).filter(Number.isFinite);
-    const exported = (BENCH.resourceScenes || []).length;
     const range = values => values.length ? Math.min(...values) + '–' + Math.max(...values) : '—';
     $('benchmark-stats').innerHTML = [
       ['42', 'Water3D scenes / sequences'],
-      [exported, '网页可交互资源（含 Wild）'],
       [range(original), '原始帧数 / scene'],
       [range(evaluated), '实际评测帧数 / scene'],
       ['逐场景', '分辨率详见下方明细']
